@@ -8,6 +8,6 @@ fi
 
 if [ $# -eq 0 ]; then
 	SCRIPT_LOCATION=`mktemp`
-	wget -qO $SCRIPT_LOCATION https://raw.githubusercontent.com/polyverse/poly/master/scripts/help
+	wget -qO $SCRIPT_LOCATION https://raw.githubusercontent.com/polyverse/plv/master/scripts/help
 	sh $SCRIPT_LOCATION
 fi
