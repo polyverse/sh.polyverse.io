@@ -75,12 +75,10 @@ RESULT="$(apt update 2>&1)"
 # All packages are up to date.
 
 if [ "$(echo "$RESULT" | grep "All packages are up to date.")" != "" ]; then
-	echo "up-to-date!"
 	UP_TO_DATE="true"
 fi
 
 if [ "$(echo "$RESULT" | grep repo.polyverse.io)" != "" ]; then
-	echo "pv installed!"
 	POLYMORPHIC_LINUX_INSTALLED="true"
 fi
 
@@ -101,7 +99,7 @@ if [ "$UP_TO_DATE" = "true" ] && [ "$POLYMORPHIC_LINUX_INSTALLED" != "true" ]; t
 fi
 
 if [ "$UP_TO_DATE" = "true" ] && [ "$POLYMORPHIC_LINUX_INSTALLED" = "true" ]; then
-	echo "Everything looks great! If you haven\'t already, you can re-install all your packages with the following command:"
+	echo "Everything looks great! If you haven't already, you can re-install all your packages with the following command:"
 	echo ""
 	echo "  sudo apt install -y --reinstall \$(dpkg --get-selections | awk '{print \$1}')"
 	echo ""
