@@ -36,7 +36,7 @@ export PLV_RELEASE=$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut 
 export PLV_ARCH="$(uname -m)"
 
 # retrieve the script source into a temp file
-TEMPFILE=`mktemp -t pv.XXX`
+TEMPFILE=`mktemp -t pv.XXXXXX`
 CMD="eval \"$SCRIPT_SOURCE\" > $TEMPFILE"
 (>&2 echo '\033[0;34m'"+ $CMD"'\033[0m' )
 eval "$CMD" 2>/dev/null
