@@ -32,5 +32,6 @@ export PLV_DISTRO=$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -
 export PLV_RELEASE=$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')
 export PLV_ARCH="$(uname -m)"
 
+echo "+ $CMD"
 eval "$CMD"
 exit $?

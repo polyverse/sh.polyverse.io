@@ -21,8 +21,10 @@ apt_list() {
 	(>&2 echo "Packages from repo.polyverse.io: $PACKAGES_FROM_PV/$TOTAL_PACKAGES" )
 
 	#rm $TEMP_FILE 2>/dev/null || true
+}
 
-	#apt-cache show bash
+yum_list() {
+	echo "NOT YET IMPLEMENTED"
 }
 
 case $PLV_DISTRO in
@@ -33,8 +35,10 @@ case $PLV_DISTRO in
 		LIST_FUNC="apt_list"
 		;;
 	*)
+		echo "Error: unsupported distro [Distro: '$PLV_DISTRO', Release: '$PLV_RELEASE', Arch: '$PLV_ARCH']"
 		exit 1
 		;;
 esac
 
 eval "$LIST_FUNC"
+exit $?
