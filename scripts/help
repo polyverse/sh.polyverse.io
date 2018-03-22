@@ -1,5 +1,22 @@
 #!/bin/sh
 
-echo "Hello world!"
+####################################################################################################
 
-exit 0
+USAGE="$(cat <<EOF
+plv is a CLI front-end for Polymorphic Linux helper scripts.
+
+Usage: plv <subcommand>
+
+Available subcommands:
+
+ help                Display help.
+ fix_dpkg_status     apt-based installations may incorrectly mark an identical package coming from
+                     repo.polyverse.io as "upgrade" instead of "reinstall". This is due to slight
+                     differences in the packages metadata (e.g., "Installed-Size:"). This subcommand
+                     will reconcile these records in /var/lib/dpkg/status.
+
+If you encounter any issues, please contact us at support@polyverse.io, or create a GitHub issue at
+https://github.com/polyverse/plv.
+)"
+
+printf "$USAGE\n"
