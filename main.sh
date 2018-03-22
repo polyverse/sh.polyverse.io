@@ -6,10 +6,9 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if [ $# -eq 0 ]; then
-	CMD="help"
-else
-	CMD="$1"
+if [ $# -eq 0 ] || [ "$1" = "help" ]; then
+	wget -qO- --no-cache https://raw.githubusercontent.com/polyverse/plv/master/usage.txt
+	exit
 fi
 
 _exit() {
@@ -18,9 +17,9 @@ _exit() {
 }
 
 SCRIPT_LOCATION=`mktemp`
-wget -qO $SCRIPT_LOCATION --no-cache https://raw.githubusercontent.com/polyverse/plv/master/scripts/$CMD
+wget -qO $SCRIPT_LOCATION --no-cache https://raw.githubusercontent.com/polyverse/plv/master/scripts/$1
 if [ $? -ne 0 ]; then
-	echo "Error: unknown subcommand '$CMD'."
+	echo "Error: unknown subcommand '$1'."
 	_exit
 fi
 sh $SCRIPT_LOCATION
