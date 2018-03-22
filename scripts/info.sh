@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "PLV_DISTRO: $PLV_DISTRO"
+echo "PLV_RELEASE: $PLV_RELEASE"
+echo "PLV_ARCH: $PLV_ARCH"
