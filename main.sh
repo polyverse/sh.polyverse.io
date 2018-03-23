@@ -8,7 +8,7 @@ if [ -d "scripts" ] && [ -f "plv" ]; then
 fi
 
 if $LOCAL_MODE; then
-	(>&2 echo '\033[0;34m'"(local mode)"'\033[0m' )
+	(>&2 echo "(local mode)" )
 
 	USAGE_SOURCE="cat usage.txt"
 	SCRIPT_SOURCE="cat scripts/$1.sh"
@@ -38,7 +38,7 @@ export PLV_ARCH="$(uname -m)"
 # retrieve the script source into a temp file
 TEMPFILE=`mktemp -t pv.XXXXXX`
 CMD="eval \"$SCRIPT_SOURCE\" > $TEMPFILE"
-(>&2 echo '\033[0;34m'"+ $CMD"'\033[0m' )
+#(>&2 echo "+ $CMD" )
 eval "$CMD" 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: unsupported subcommand '$1'."
@@ -46,14 +46,14 @@ if [ $? -ne 0 ]; then
 fi
 
 CMD="cat $TEMPFILE | sh -s"
-(>&2 echo '\033[0;34m'"+ $CMD"'\033[0m' )
+#(>&2 echo "+ $CMD" )
 eval "$CMD"
 EXIT_CODE=$?
 
 # remove the tempfile if the script executed successfully
 if [ $EXIT_CODE -eq 0 ]; then
 	CMD="rm $TEMPFILE"
-	(>&2 echo '\033[0;34m'"+ $CMD > $TEMPFILE"'\033[0m' )
+	#(>&2 echo "+ $CMD" )
 	eval "$CMD"
 	exit 0
 fi
