@@ -3,6 +3,8 @@ Usage: plv <subcommand>
 Available subcommands:
 
  help               Display help.
+ list-installed     List installed packages, version and source repo. Useful
+                    to check whether an installed package came from Polyverse.
  fix_dpkg_status    apt-based installations may incorrectly mark an identical
                     package coming from repo.polyverse.io as "upgrade" instead
                     of "reinstall". This is due to slight differences in the
