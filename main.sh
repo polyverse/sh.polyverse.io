@@ -44,8 +44,9 @@ if [ $? -ne 0 ]; then
 	echo "Error: unsupported subcommand '$1'."
 	exit 1
 fi
+shift
 
-CMD="cat $TEMPFILE | sh -s"
+CMD="cat $TEMPFILE | sh -s $@"
 #(>&2 echo "+ $CMD" )
 eval "$CMD"
 EXIT_CODE=$?
