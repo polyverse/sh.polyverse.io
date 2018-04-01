@@ -10,7 +10,9 @@ cat >&2 <<-EOF
 
 Recursively scans all the executables from the current directory and compares
 the relative path/filename to the executables in an .rpm. If there's a match,
-the current binary is replaced with the one from the .rpm file.
+the current binary is replaced with the one from the .rpm file. You do not need
+to have the rpm downloaded; the baseurl from the repo file is used as the
+source from which this script will download the rpm file.
 
 Usage:
 
@@ -38,6 +40,9 @@ while [ $# -gt 0 ]; do
 			shift
 			REPO_FILE="$1"
                         ;;
+		--help)
+			usage
+			;;
                 *)
 			if [ -z "$PACKAGE_NAME" ]; then
 				PACKAGE_NAME="$1"
@@ -52,7 +57,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$PACKAGE_NAME" ]; then
-	echo "No package name specified."
+	usage
 	exit 1
 fi
 
