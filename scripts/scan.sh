@@ -15,7 +15,9 @@ find $INSTALL_ROOT/ -name \* -print | while read line; do
                 continue
         fi
 
-        DTSTAMP="$(stat --format "%y" "$INSTALL_ROOT/$TARGET")"
+        DTSTAMP="$(stat --format "%y" "$INSTALL_ROOT/$TARGET" | awk '{print $1 " " $2}' | sed -E 's/(:[0-9]+)\.[0-9]+/\1/g')"
+
+	CHECKSUM="$(cksum "$INSTALL_ROOT/$TARGET" | awk '{print $1}')"
 
         ELF_COMMENTS="$(readelf --string-dump=.comment $INSTALL_ROOT/$TARGET 2>/dev/null)"
         if [ $? -ne 0 ]; then
@@ -28,5 +30,5 @@ find $INSTALL_ROOT/ -name \* -print | while read line; do
                 fi
         fi
 
-        printf "[%s] %s %s %s\n" "$IS_PV" "$STAT" "$DTSTAMP" "$line"
+        printf "[%s] %s %-11s %s  %s\n" "$IS_PV" "$STAT" "$CHECKSUM" "$DTSTAMP" "$line"
 done
