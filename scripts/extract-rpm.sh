@@ -143,28 +143,38 @@ find $INSTALL_ROOT -name \* -print | while read line; do
 		debugln "--> not executable. skipping..."
 		continue
 	fi
-	debugln "--> executable!"
 
-	#PACKAGED_FILE="$(echo "$RPM_CONTENTS" | grep \/$TARGET\$ | grep "^-.*x " | awk '{print $9}')"
+        ELF_COMMENTS="$(readelf --string-dump=.comment $INSTALL_ROOT/$TARGET 2>/dev/null)"
+        if [ $? -ne 0 ]; then
+                debugln "--> not elf file. skipping..."
+		continue
+        fi
+
 	PACKAGED_FILES="$(echo "$RPM_CONTENTS" | grep \/$TARGET\$ 2>/dev/null | awk '{print $9}')"
         if [ "$PACKAGED_FILES" = "" ]; then
+		debugln "--> file not found in package. skipping..."
                 continue
         fi
 
 	for PACKAGED_FILE in $PACKAGED_FILES; do
 		if [ "$PACKAGED_FILE" = "$INSTALL_ROOT/$TARGET" ]; then
+			debugln "--> exact match."
 			break
 		fi
 	done
 
-        echo "*** Extracting $PACKAGED_FILE from $PACKAGE_NAME and replacing $INSTALL_ROOT/$TARGET... ***"
+        echo "*** Extracting [$PACKAGE_NAME] $PACKAGED_FILE --> $INSTALL_ROOT/$TARGET ***"
 
+	# grab key file attributes since extracting/redirecting doesn't preserve
 	CHMOD="$(stat --format "%a" "$INSTALL_ROOT/$TARGET")"
-	#CMD="rpm2cpio $INSTALL_ROOT/$PACKAGE_NAME | cpio -iv --to-stdout .$PACKAGED_FILE 2>/dev/null > $INSTALL_ROOT/$TARGET"
-	#echo "+ $CMD"
+	OWNER="$(stat --format "%U" "$INSTALL_ROOT/$TARGET")"
+	GROUP="$(stat --format "%G" "$INSTALL_ROOT/$TARGET")"
+
+	# extract out the specific file from package
 	rpm2cpio $INSTALL_ROOT/$PACKAGE_NAME | cpio -iv --to-stdout .$PACKAGED_FILE 2>/dev/null > $INSTALL_ROOT/$TARGET
-	#CMD="chmod $CHMOD $INSTALL_ROOT/$TARGET"
-	#echo "+ CMD"
+
+	# restore original file attributes
 	chmod $CHMOD $INSTALL_ROOT/$TARGET
+	chown $OWNER:$GROUP $INSTALL_ROOT/$TARGET
 	debugln "--> end of loop"
 done
