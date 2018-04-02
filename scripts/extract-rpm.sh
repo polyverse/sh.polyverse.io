@@ -118,6 +118,7 @@ debugln() {
 }
 
 RPM_CONTENTS="$(rpm -qlpv $INSTALL_ROOT/$PACKAGE_NAME)"
+debugln "--> RPM CONTENTS: $RPM_CONTENTS <--"
 
 # get a recursive directory listing of $INSTALL_ROOT
 echo "Scanning $INSTALL_ROOT..."
