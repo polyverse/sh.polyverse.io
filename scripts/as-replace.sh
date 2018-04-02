@@ -24,10 +24,18 @@ if [ $# -ne 1 ]; then
 	exit 1
 fi
 
+if [ ! -d /opt.old ]; then
+	echo "Please take a backup of the /opt folder called /opt.old."
+	exit 1
+fi
+
 NODE_ROLE="$1"
 
 case "$NODE_ROLE" in
 	ESM611PV)
+		STOP_CMD="/etc/init.d/arcsight_services stop"
+		START_CMD="/etc/init.d/arcsight_services start"
+
 		OVERLAYS="/opt/arcsight/logger/current/local/jre,java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64.rpm"
 		OVERLAYS+=" /opt/arcsight/logger/current/local/jre,java-1.8.0-openjdk-headless-1.8.0.161-0.b14.el7_4.x86_64.rpm"
 
@@ -42,6 +50,9 @@ case "$NODE_ROLE" in
 		OVERLAYS+=" /opt/arcsight/logger/current/local/pgsql,postgresql-server-9.2.23-3.el7_4.x86_64.rpm"
 		;;
 	ArcMC27PV)
+		STOP_CMD="/etc/rc.d/init.d/arcsight_arcmc stop"
+		START_CMD="/etc/rc.d/init.d/arcsight_arcmc start"
+
 		OVERLAYS="/opt/arcsight/current/local/jre,java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64.rpm"
 		OVERLAYS+=" /opt/arcsight/current/local/jre,java-1.8.0-openjdk-headless-1.8.0.161-0.b14.el7_4.x86_64.rpm"
 
@@ -50,8 +61,16 @@ case "$NODE_ROLE" in
 		OVERLAYS+=" /opt/arcsight/current/local/pgsql,postgresql-server-9.2.23-3.el7_4.x86_64.rpm"
 
 		OVERLAYS+=" /opt/arcsight/current/local/apache,httpd-2.4.6-67.el7.centos.2.x86_64.rpm"
+
+		OVERLAYS+=" /opt/arcsight/current/local/openssl,openssl-1.0.2k-8.el7.x86_64.rpm"
+		OVERLAYS+=" /opt/arcsight/current/local/openssl/lib,openssl-libs-1.0.2k-8.el7.x86_64.rpm"
+
+		OVERLAYS+=" /opt/arcsight/current/local/nss/lib,nss-3.28.4-8.el7.x86_64.rpm"
 		;;
 	Logger65PV)
+		STOP_CMD="/etc/rc.d/init.d/arcsight_logger stop"
+		START_CMD="/etc/rc.d/init.d/arcsight_logger start"
+		
 		OVERLAYS="/opt/current/arcsight/connector/current/jre,java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64.rpm"
 		OVERLAYS+=" /opt/current/arcsight/connector/current/jre,java-1.8.0-openjdk-headless-1.8.0.161-0.b14.el7_4.x86_64.rpm"
 
