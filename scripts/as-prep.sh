@@ -49,6 +49,7 @@ case $NODEROLE in
 		;;
 	docker)
 		echo "This is a test environment. No services to start/stop. Skipping."
+		;;
 	*)
 		echo "Error: unknown node_role '$NODEROLE'. Exiting..."
 		exit 1
