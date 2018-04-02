@@ -128,7 +128,7 @@ find $INSTALL_ROOT -name \* -print | while read line; do
 	fi
 
 	debugln "$INSTALL_ROOT/$TARGET ($TARGET)"
-	echo "$INSTALL_ROOT/$TARGET"
+	#echo "$INSTALL_ROOT/$TARGET"
 
 	FORMAT="$(stat --format %F "$INSTALL_ROOT/$TARGET")"
 	debugln "--> format: $FORMAT"
