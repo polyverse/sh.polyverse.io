@@ -17,7 +17,7 @@ Available subcommands:
                     of "reinstall". This is due to slight differences in the
                     packages metadata (e.g., "Installed-Size:"). This subcommand
                     will reconcile these records in /var/lib/dpkg/status.
- scan-process       Scan all mapped memory in a PID for "-PV" signature.
+ scan-pid           Scan all mapped memory in a PID for "-PV" signature.
 
 If you encounter any issues, please contact us at support@polyverse.io, or
 create a GitHub issue at https://github.com/polyverse/plv.
