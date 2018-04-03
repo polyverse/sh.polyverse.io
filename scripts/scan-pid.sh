@@ -6,8 +6,7 @@ if [ $(id -u) -ne 0 ]; then
 fi
 
 if [[ $# != 2 ]] ; then
-	echo 'usage: $0 pid string'
-	echo 'example: $0 `pgrep java` "\-PV\-"'
+	echo "usage: plv scan-pid pid string"
 	exit 1
 fi
 
