@@ -23,9 +23,16 @@ AUTHKEY="$1"
 NODEID="$2"
 NODEROLE="$3"
 
+# originally has an /opt folder. backup /opt -> /opt.old
+# working copy is called /opt.pv, so move /opt -> /opt.pv
+# and then create a symlink /opt -> /opt.pv.
+# if something fails, stop service, change symlink to /opt -> /opt.old
+# and start the service again.
 if [ ! -d /opt.old ]; then
 	echo "Backup: creating a copy of /opt to /opt.old..."
-	cp -R /opt /opt.old
+	cp -pR /opt /opt.old
+	mv opt opt.pv
+	ln -s opt.pv opt
 else
 	echo "Backup: /opt.old already exists. Skipping."
 fi
