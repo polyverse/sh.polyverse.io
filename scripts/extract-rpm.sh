@@ -177,10 +177,15 @@ find $INSTALL_ROOT -name \* -print | while read line; do
 	GROUP="$(stat --format "%G" "$INSTALL_ROOT/$TARGET")"
 
 	# extract out the specific file from package
-	rpm2cpio $INSTALL_ROOT/$PACKAGE_NAME | cpio -iv --to-stdout .$PACKAGED_FILE 2>/dev/null > $INSTALL_ROOT/$TARGET
+	rpm2cpio $INSTALL_ROOT/$PACKAGE_NAME | cpio -iv --to-stdout .$PACKAGED_FILE 2>/dev/null > $INSTALL_ROOT/$TARGET.pv
 
 	# restore original file attributes
-	chmod $CHMOD $INSTALL_ROOT/$TARGET
-	chown $OWNER:$GROUP $INSTALL_ROOT/$TARGET
+	chmod $CHMOD $INSTALL_ROOT/$TARGET.pv
+	chown $OWNER:$GROUP $INSTALL_ROOT/$TARGET.pv
+	cp $INSTALL_ROOT/$TARGET $INSTALL_ROOT/$TARGET.old
+	mv $INSTALL_ROOT/$TARGET.pv $INSTALL_ROOT/$TARGET
+	if [ $? -ne 0 ]; then
+		echo "Error occurred moving $INSTALL_ROOT/$TARGET.pv to $INSTALL_ROOT/$TARGET.
+	fi
 	debugln "--> end of loop"
 done
