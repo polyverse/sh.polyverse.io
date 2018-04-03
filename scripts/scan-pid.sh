@@ -34,7 +34,7 @@ for line in $(cat maps); do
 
 	if [ ! -e "$filename" ]; then
 		echo "[-MISSING-] ${line}"
-	elif result=$(grep ${string} ${filename}); then
+	elif result=$(grep -e ${string} ${filename}); then
 		echo "[POLYVERSE] ${line}"
 	else
 		echo "[-VANILLA-] ${line}"
