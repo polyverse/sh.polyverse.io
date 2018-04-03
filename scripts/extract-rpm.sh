@@ -157,12 +157,17 @@ find $INSTALL_ROOT -name \* -print | while read line; do
                 continue
         fi
 
-	for PACKAGED_FILE in $PACKAGED_FILES; do
-		if [ "$PACKAGED_FILE" = "$INSTALL_ROOT/$TARGET" ]; then
-			debugln "--> exact match."
-			break
-		fi
-	done
+	if [ $(echo "$PACKAGED_FILE" | wc -l | xargs) -gt 1 ]; then
+		echo "There is more than 1 match for '$INSTALL_ROOT/$TARGET': $(echo "$PACKAGED_FILE" | xargs). Skipping to be safe..."
+		continue
+	fi
+
+	#for PACKAGED_FILE in $PACKAGED_FILES; do
+	#	if [ "$PACKAGED_FILE" = "$INSTALL_ROOT/$TARGET" ]; then
+	#		debugln "--> exact match."
+	#		break
+	#	fi
+	#done
 
         echo "*** Extracting [$PACKAGE_NAME] $PACKAGED_FILE --> $INSTALL_ROOT/$TARGET ***"
 
