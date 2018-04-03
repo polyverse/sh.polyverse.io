@@ -42,11 +42,12 @@ case "$NODE_ROLE" in
 		OVERLAYS+=" /opt/arcsight/manager/jre,java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64.rpm"
 		OVERLAYS+=" /opt/arcsight/manager/jre,java-1.8.0-openjdk-headless-1.8.0.161-0.b14.el7_4.x86_64.rpm"
 
-		OVERLAYS+=" /opt/arcsight/logger/current/local/mysql,mariadb-5.5.56-2.el7.x86_64.rpm"
-		OVERLAYS+=" /opt/arcsight/logger/current/local/mysql,mariadb-server-5.5.56-2.el7.x86_64.rpm"
+		OVERLAYS+=" /opt/arcsight/logger/current/local/apache,httpd-2.4.6-67.el7.centos.2.x86_64.rpm"
+
+		#OVERLAYS+=" /opt/arcsight/logger/current/local/mysql,mariadb-5.5.56-2.el7.x86_64.rpm"
+		#OVERLAYS+=" /opt/arcsight/logger/current/local/mysql,mariadb-server-5.5.56-2.el7.x86_64.rpm"
 
 		OVERLAYS+=" /opt/arcsight/logger/current/local/pgsql,postgresql-9.2.23-3.el7_4.x86_64.rpm"
-		OVERLAYS+=" /opt/arcsight/logger/current/local/pgsql,postgresql-libs-9.2.23-3.el7_4.x86_64.rpm"
 		OVERLAYS+=" /opt/arcsight/logger/current/local/pgsql,postgresql-server-9.2.23-3.el7_4.x86_64.rpm"
 		;;
 	ArcMC27PV)
@@ -87,8 +88,34 @@ case "$NODE_ROLE" in
 		OVERLAYS+=" /opt/current/local/apache,httpd-2.4.6-67.el7.centos.2.x86_64.rpm"
 		;;
 	SConnHostPV)
-		echo "Nothing to overlay."
-		exit 0
+		OVERLAY="/opt/smartconnectors/syslog/current/jre,java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64.rpm"
+		OVERLAY+=" /opt/smartconnectors/syslog/current/jre,java-1.8.0-openjdk-headless-1.8.0.161-0.b14.el7_4.x86_64.rpm"
+
+		OVERLAY+=" /opt/smartconnectors/syslog/current/jre,java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64.rpm"
+
+		OVERLAY+=" /opt/smartconnectors/LinuxAudit/current/jre,java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64.rpm"
+		OVERLAY+=" /opt/smartconnectors/LinuxAudit/current/jre,java-1.8.0-openjdk-headless-1.8.0.161-0.b14.el7_4.x86_64.rpm"
+
+		OVERLAY+=" /opt/arcsight/connectors/windows/current/jre,java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64.rpm"
+		OVERLAY+=" /opt/arcsight/connectors/windows/current/jre,java-1.8.0-openjdk-headless-1.8.0.161-0.b14.el7_4.x86_64.rpm"
+
+		OVERLAY+=" /opt/arcsight/connectors/netevents/current/jre,java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64.rpm"
+		OVERLAY+=" /opt/arcsight/connectors/netevents/current/jre,java-1.8.0-openjdk-headless-1.8.0.161-0.b14.el7_4.x86_64.rpm"
+
+		OVERLAY+=" /opt/arcsight/connectors/netevents/current/jre,java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64.rpm"
+
+		OVERLAY+=" /opt/arcsight/connectors/nix-events/current/jre,java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64.rpm"
+		OVERLAY+=" /opt/arcsight/connectors/nix-events/current/jre,java-1.8.0-openjdk-headless-1.8.0.161-0.b14.el7_4.x86_64.rpm"
+
+		OVERLAY+=" /opt/arcsight/connectors/syslog-gen/current/jre,java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64.rpm"
+		OVERLAY+=" /opt/arcsight/connectors/syslog-gen/current/jre,java-1.8.0-openjdk-headless-1.8.0.161-0.b14.el7_4.x86_64.rpm"
+
+		# /opt/smartconnectors/syslog/current/bin/nss
+		# /opt/smartconnectors/LinuxAudit/current/bin/nss
+		# /opt/arcsight/connectors/windows/current/bin/nss
+		# /opt/arcsight/connectors/netevents/current/bin/nss
+		# /opt/arcsight/connectors/nix-events/current/bin/nss
+		# /opt/arcsight/connectors/syslog-gen/current/bin/nss
 		;;
 	*)
 		echo "error: unknown role '$NODE_ROLE'."
