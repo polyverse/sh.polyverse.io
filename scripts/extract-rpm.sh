@@ -185,7 +185,7 @@ find $INSTALL_ROOT -name \* -print | while read line; do
 	cp $INSTALL_ROOT/$TARGET $INSTALL_ROOT/$TARGET.old
 	mv $INSTALL_ROOT/$TARGET.pv $INSTALL_ROOT/$TARGET
 	if [ $? -ne 0 ]; then
-		echo "Error occurred moving $INSTALL_ROOT/$TARGET.pv to $INSTALL_ROOT/$TARGET.
+		echo "Error occurred moving $INSTALL_ROOT/$TARGET.pv to $INSTALL_ROOT/$TARGET."
 	fi
 	debugln "--> end of loop"
 done
