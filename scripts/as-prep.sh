@@ -84,6 +84,7 @@ if [ ! -f /etc/yum.repos.d/polyverse.repo ]; then
 		echo "Encountered error. Exiting..."
 		exit 1
 	fi
+	yum reinstall -y \*
 	if [ "$SERVICE_CMD" != "" ]; then
 		eval "$SERVICE_CMD start"
 		if [ $? -ne 0 ]; then
