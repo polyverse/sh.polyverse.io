@@ -1,8 +1,13 @@
 #!/bin/bash
 
+if [ $(id -u) -ne 0 ]; then
+        echo "This script must be run as root. Please try running this again as a sudo or root user." 1>&2
+        exit 1
+fi
+
 if [[ $# != 2 ]] ; then
-	echo 'usage: sudo $0 pid string'
-	echo 'example: sudo $0 `pgrep java` "\-PV\-"'
+	echo 'usage: $0 pid string'
+	echo 'example: $0 `pgrep java` "\-PV\-"'
 	exit 1
 fi
 
