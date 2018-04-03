@@ -27,7 +27,7 @@ find $INSTALL_ROOT/ -name \* -print | while read line; do
                         IS_PV="-vanilla--"
                 else
                         IS_PV="scrambled"
-			SHA="$(echo "$ELF_COMMENTS" | awk -F'(' '{print $2}' | awk -F')' '{print $1}' | awk -F'-' '{print $3}' | xargs)"
+			SHA="$(echo "$ELF_COMMENTS" | xargs | awk -F'(' '{print $2}' | awk -F')' '{print $1}' | awk -F'-' '{print $3}')"
 			IS_PV="PV-$SHA"
                 fi
         fi
