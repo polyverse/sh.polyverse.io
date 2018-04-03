@@ -36,19 +36,19 @@ echo $NODEID > /opt/polyverse/nodeid
 
 case $NODEROLE in
 	esm611pv)
-		echo "Run '/etc/init.d/arcsight_services stop'."
+		SERVICE_CMD="/etc/init.d/arcsight_services"
 		;;
 	arcmc27pv)
-		echo "Run '/etc/rc.d/init.d/arcsight_arcmc stop'."
+		SERVICE_CMD="/etc/rc.d/init.d/arcsight_arcmc"
 		;;
 	logger65pv)
-		echo "Run '/etc/rc.d/init.d/arcsight_logger stop'."
+		SERVICE_CMD="/etc/rc.d/init.d/arcsight_logger"
 		;;
 	sconnhostpv)
-		echo "No need to stop any services."
+		SERVICE_CMD=""
 		;;
 	docker)
-		echo "This is a test environment. No services to start/stop. Skipping."
+		SERVICE_CMD=""
 		;;
 	*)
 		echo "Error: unknown node_role '$NODEROLE'. Exiting..."
@@ -64,12 +64,28 @@ else
 fi
 
 if [ ! -f /etc/yum.repos.d/polyverse.repo ]; then
+	if [ "$SERVICE_CMD" != "" ]; then
+		eval "$SERVICE_CMD stop"
+		if [ $? -ne 0 ]; then
+			echo "Error: '$SERVICE_CMD stop' failed. Exiting..."
+			exit 1
+		fi
+	fi
 	echo "Polymorphic Linux: installing..."
 	curl https://repo.polyverse.io/install.sh | sh -s $AUTHKEY $NODEID
 	if [ $? -ne 0 ]; then
 		echo "Encountered error. Exiting..."
 		exit 1
 	fi
+	if [ "$SERVICE_CMD" != "" ]; then
+		eval "$SERVICE_CMD start"
+		if [ $? -ne 0 ]; then
+			echo "Warning: '$SERVICE_CMD start' failed."
+		fi
+	fi
 else
 	echo "Polymorphic Linux: already installed. Skipping."
+fi
+if [ "$SERVICE_CMD" != "" ]; then
+	eval "$SERVICE_CMD status"
 fi
