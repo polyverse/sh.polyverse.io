@@ -21,17 +21,16 @@ find $INSTALL_ROOT/ -name \* -print | while read line; do
 
         ELF_COMMENTS="$(readelf --string-dump=.comment $INSTALL_ROOT/$TARGET 2>/dev/null)"
         if [ $? -ne 0 ]; then
-                IS_PV="-not elf-"
-		SHA="-------"
+                IS_PV="-not elf--"
         else
                 if [ "$(echo "$ELF_COMMENTS" | grep "\-PV\-")" = "" ]; then
-                        IS_PV="-vanilla-"
-			SHA="-------"
+                        IS_PV="-vanilla--"
                 else
                         IS_PV="scrambled"
-			SHA="$(echo "$ELF_COMMENTS" | awk -F'(' '{print $2}' | awk -F')' '{print $1}' | awk -F'-' '{print $3}')"
+			SHA="$(echo "$ELF_COMMENTS" | awk -F'(' '{print $2}' | awk -F')' '{print $1}' | awk -F'-' '{print $3}') | xargs"
+			IS_PV="PV-$SHA"
                 fi
         fi
 
-        printf "[%s] %s %s %-11s %s  %s\n" "$IS_PV" "$SHA" "$STAT" "$CHECKSUM" "$DTSTAMP" "$line"
+        printf "[%s] %s %-11s %s  %s\n" "$IS_PV" "$STAT" "$CHECKSUM" "$DTSTAMP" "$line"
 done
