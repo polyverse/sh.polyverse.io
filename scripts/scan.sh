@@ -1,6 +1,10 @@
 #!/bin/sh
 
-INSTALL_ROOT=$PWD
+if [ "$1" = "" ]; then
+	INSTALL_ROOT=$PWD
+else
+	INSTALL_ROOT=$1
+fi
 
 echo "Scanning $INSTALL_ROOT..."
 find $INSTALL_ROOT/ -name \* -print | while read line; do
