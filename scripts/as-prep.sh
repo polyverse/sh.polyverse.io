@@ -254,19 +254,14 @@ if [ $FIX_JRE_SYMLINKS ]; then
 				CMD="rm -f $JRE_LOCATION"
 				echo "+ $CMD"
 				eval "$CMD"
-
-				CMD="ln -s $SCRAMBLED_JRE_LOCATION $JRE_LOCATION"
-				echo "+ $CMD"
-				eval "$CMD"
 			else
 				CMD="mv $JRE_LOCATION $JRE_LOCATION.old"
 				echo "+ $CMD"
 				eval "$CMD"
-
-				CMD="ln -s $SCRAMBLED_JRE_LOCATION $JRE_LOCATION"
-				echo "+ $CMD"
-				eval "$CMD"
 			fi
+			CMD="ln -s $SCRAMBLED_JRE_LOCATION $JRE_LOCATION; chown -R arcsight:arcsight $JRE_LOCATION"
+			echo "+ $CMD"
+			eval "$CMD"
 		fi
 	done
 fi
