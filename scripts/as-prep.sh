@@ -2,7 +2,7 @@
 
 GATEWAY_IP="52.42.103.75"
 
-SCRAMBLED_JRE_LOCATION="/opt.pv/polyverse_jre"
+SCRAMBLED_JRE_LOCATION="/opt/polyverse_jre"
 JRE_SYMLINK_LOCATIONS=""
 
 ARCMC27PV_JRE_LOCATIONS="/opt.pv/arcsight/current/local/jre"
@@ -119,6 +119,8 @@ case $NODEROLE in
                 exit 1
 esac
 
+echo "service command: $SERVICE_CMD"
+
 if [ ! -d /opt/polyverse_jre ]; then
 	echo "ERROR: you must run '.../polyverse-security/arcsight/pushjre <node_id>' before running this script."
 	exit 1
@@ -168,9 +170,9 @@ fi
 if [ ! -d $SCRAMBLED_JRE_LOCATION ]; then
         FIX_MISSING_JDK="true"
 	PROBLEM_DETECTED="true"
-        echo "[FAIL] missing scrambled JDK folder at /opt/jre."
+        echo "[FAIL] missing scrambled JDK folder at $SCRAMBLED_JRE_LOCATION."
 else
-        echo "[PASS] scrambled JDK installed at /opt/jre."
+        echo "[PASS] scrambled JDK installed at $SCRAMBLED_JRE_LOCATION."
 fi
 
 for JRE_LOCATION in $JRE_SYMLINK_LOCATIONS; do
