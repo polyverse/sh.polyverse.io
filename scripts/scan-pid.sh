@@ -28,18 +28,23 @@ IFS='
 for line in $(cat maps); do
 	start=$(echo -n ${line} | sed -n 's/^\([0-9a-f]*\)-\([0-9a-f]*\) .*$/\1 \2/p' | cut -d" " -f1)
 	stop=$(echo -n ${line} | sed -n 's/^\([0-9a-f]*\)-\([0-9a-f]*\) .*$/\1 \2/p' | cut -d" " -f2)
+        perm=$(echo -n ${line} | cut -d" " -f2)
 
-	filename="${pid}-${start}-${stop}.dump"
-	gdb --quiet --batch-silent -pid ${pid} -ex "dump memory ${filename} 0x${start} 0x${stop}" 2>/dev/null
+        if [[ ${perm} == "---p" ]]; then
+                echo "[-PRIVATE-] ${line}"
+        else
+                filename="${pid}-${start}-${stop}.dump"
+                gdb --quiet --batch-silent -pid ${pid} -ex "dump memory ${filename} 0x${start} 0x${stop}" 2>/dev/null
 
-	if [ ! -e "$filename" ]; then
-		echo "[-MISSING-] ${line}"
-	elif result=$(grep -e ${string} ${filename}); then
-		echo "[POLYVERSE] ${line}"
-	else
-		echo "[-VANILLA-] ${line}"
-		rm ${filename}
-	fi
+                if [ ! -e "$filename" ]; then
+                        echo "[-MISSING-] ${line}"
+                elif result=$(grep -e ${string} ${filename}); then
+                        echo "[POLYVERSE] ${line}"
+                else
+                        echo "[-VANILLA-] ${line}"
+                        rm ${filename}
+                fi
+        fi
 done
 
 cd ..
