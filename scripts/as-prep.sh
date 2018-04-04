@@ -138,6 +138,11 @@ case $NODEROLE in
                 exit 1
 esac
 
+if [ ! -d /opt/polyverse_jre ]; then
+	echo "ERROR: you must run '.../polyverse-security/arcsight/pushjre <node_id>' before running this script."
+	exit 1
+fi
+
 if [ "$(cat /etc/hosts | grep "repo.polyverse.io")" = "" ]; then
 	FIX_ETC_HOSTS="true"
 	PROBLEM_DETECTED="true"
@@ -179,7 +184,7 @@ else
 	echo "[PASS] /opt points to /opt.pv"
 fi
 
-if [ ! -d /opt/polyverse_jre ]; then
+if [ ! -d $SCRAMBLED_JRE_LOCATION ]; then
         FIX_MISSING_JDK="true"
 	PROBLEM_DETECTED="true"
         echo "[FAIL] missing scrambled JDK folder at /opt/jre."
@@ -191,7 +196,9 @@ if [ ! $FIX_PROBLEMS ]; then
   exit 0
 fi
 
-echo "fixing problems..."
+echo
+echo "Fixing problems..."
+echo
 
 ###
 # FIX PROBLEMS
@@ -211,11 +218,15 @@ if [ $FIX_BACKUP_OPT ]; then
 	echo "+ $CMD"
 	eval "$CMD"
 
-	CMD="mv opt opt.pv"
+	chown arcsight:arcsight /opt.old
+
+	CMD="mv /opt /opt.pv"
 	echo "+ $CMD"
 	eval "$CMD"
 
-	CMD="ln -s opt.pv opt"
+	chown arcsight:arcsight /opt.pv
+
+	CMD="ln -s /opt.pv /opt"
 	echo "+ $CMD"
 	eval "$CMD"
 fi
@@ -223,6 +234,8 @@ fi
 if [ $FIX_MISSING_SYMLINK ] || [ $FIX_WRONG_SYMLINK ]; then
 	echo "*********** NOT YET IMPLEMENTED. NEED TO DO BY HAND. ***********"
 fi
+
+chown arcsight:arcsight $SCRAMBLED_JRE_LOCATION
 
 if [ $FIX_JRE_SYMLINKS ]; then
 	stopServices
