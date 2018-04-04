@@ -179,11 +179,11 @@ else
 fi
 
 for JRE_LOCATION in $JRE_SYMLINK_LOCATIONS; do
-	LS_OUTPUT="$(ls -l $JRE_LOCATION 2>/dev/null)"
-	if [ "$(echo "$LS_OUTPUT" | grep polyverse_jre)" = "" ]; then
+	CURRENT_LINK="$(ls -l $JRE_LOCATION | rev | cut -d' ' -f1 | rev)"
+	if [ "$CURRENT_LINK" != "$SCRAMBLED_JRE_LOCATION" ]; then
 		FIX_JRE_SYMLINKS="true"
 		PROBLEM_DETECTED="true"
-		echo "[FAIL] $JRE_LOCATION not symlinked to $SCRAMBLED_JRE_LOCATION."
+		echo "[FAIL] $JRE_LOCATION not symlinked to $SCRAMBLED_JRE_LOCATION. Currently pointing to '$CURRENT_LINK'."
 	else
 		echo "[PASS] $JRE_LOCATION --> $SCRAMBLED_JRE_LOCATION"
 	fi
