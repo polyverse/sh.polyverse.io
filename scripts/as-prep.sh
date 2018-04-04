@@ -27,16 +27,22 @@ stopServices() {
 		return
 	fi
 
-	eval "$SERVICE_CMD stop"
+	CMD="$SERVICE_CMD stop"
+	echo "+ $CMD"
+	eval "$CMD"
 
 	STOPPED_SERVICES="true"
 	return 0
 }
 
 startServices() {
-	if [ $STOPPED_SERVICES ]; then
-		eval "$SERVICE_CMD start"
+	if [ ! $STOPPED_SERVICES ]; then
+		return	
 	fi
+
+	CMD="$SERVICE_CMD stop"
+	echo "+ $CMD"
+	eval "$CMD"
 
 	STOPPED_SERVICES="false"
 	return 0
