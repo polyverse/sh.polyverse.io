@@ -186,6 +186,10 @@ for JRE_LOCATION in $JRE_SYMLINK_LOCATIONS; do
 	fi
 done
 
+if [ "$SERVICE_CMD" != "" ]; then
+        eval "$SERVICE_CMD status"
+fi
+
 if [ ! $FIX_PROBLEMS ]; then
   exit 0
 fi
