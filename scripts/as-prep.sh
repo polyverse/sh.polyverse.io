@@ -224,13 +224,13 @@ if [ $FIX_BACKUP_OPT ]; then
 	echo "+ $CMD"
 	eval "$CMD"
 
-	chown arcsight:arcsight /opt.old
+	chown -R arcsight:arcsight /opt.old
 
 	CMD="mv /opt /opt.pv"
 	echo "+ $CMD"
 	eval "$CMD"
 
-	chown arcsight:arcsight /opt.pv
+	chown -R arcsight:arcsight /opt.pv
 
 	CMD="ln -s /opt.pv /opt"
 	echo "+ $CMD"
@@ -241,7 +241,7 @@ if [ $FIX_MISSING_SYMLINK ] || [ $FIX_WRONG_SYMLINK ]; then
 	echo "*********** NOT YET IMPLEMENTED. NEED TO DO BY HAND. ***********"
 fi
 
-chown arcsight:arcsight $SCRAMBLED_JRE_LOCATION
+chown -R arcsight:arcsight $SCRAMBLED_JRE_LOCATION
 
 if [ $FIX_JRE_SYMLINKS ]; then
 	stopServices
