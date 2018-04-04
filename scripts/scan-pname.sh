@@ -27,7 +27,7 @@ fi
 for pid in $(pgrep $pname); do
   echo "PID ${pid}:"
   liblist=$(lsof -p $pid | grep '\.so' | awk '{print $9}')
-  for lib in $liblist ; do
+  for lib in $lib ; do
     numFound=$(strings $liblist | grep -i -- $string | wc -l)
     echo "$numFound     $lib"
   done
