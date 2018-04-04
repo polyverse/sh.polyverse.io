@@ -23,11 +23,17 @@ EOF
 
 STOPPED_SERVICES="false"
 stopServices() {
-	echo "stopServices()..."
 	if [ $STOPPED_SERVICES ]; then
+		echo "--> services already stopped."
 		return
 	fi
 
+	if [ "$SERVICE_CMD" = "" ]; then
+		echo "--> no services specified in script."
+		return
+	fi
+
+	echo "--> stopping services..."
 	CMD="$SERVICE_CMD stop"
 	echo "+ $CMD"
 	eval "$CMD"
@@ -37,11 +43,17 @@ stopServices() {
 }
 
 startServices() {
-	echo "startServices()..."
 	if [ ! $STOPPED_SERVICES ]; then
+		echo "--> services already started."
 		return	
 	fi
 
+        if [ "$SERVICE_CMD" = "" ]; then
+                echo "--> no services specified in script."
+                return
+        fi
+
+	echo "--> starting services..."
 	CMD="$SERVICE_CMD stop"
 	echo "+ $CMD"
 	eval "$CMD"
