@@ -55,7 +55,7 @@ startServices() {
         fi
 
 	echo "--> starting services..."
-	CMD="$SERVICE_CMD stop"
+	CMD="$SERVICE_CMD start"
 	echo "+ $CMD"
 	eval "$CMD"
 
