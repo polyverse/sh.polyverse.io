@@ -23,6 +23,7 @@ EOF
 
 STOPPED_SERVICES="false"
 stopServices() {
+	echo "stopServices()..."
 	if [ $STOPPED_SERVICES ]; then
 		return
 	fi
@@ -36,6 +37,7 @@ stopServices() {
 }
 
 startServices() {
+	echo "startServices()..."
 	if [ ! $STOPPED_SERVICES ]; then
 		return	
 	fi
@@ -88,9 +90,9 @@ case $NODEROLE in
 			if [ "$(echo "$LS_OUTPUT" | grep polyverse_jre)" = "" ]; then
 				FIX_JRE_SYMLINKS="true"
 				PROBLEM_DETECTED="true"
-				echo "[FAIL] $JRE_LOCATION not symlinked to /opt.pv/polyverse_jre."
+				echo "[FAIL] $JRE_LOCATION not symlinked to $SCRAMBLED_JRE_LOCATION."
 			else
-				echo "[PASS] $JRE_LOCATION --> /opt.pv/polyverse_jre"
+				echo "[PASS] $JRE_LOCATION --> $SCRAMBLED_JRE_LOCATION"
 			fi
 		done
                 ;;
