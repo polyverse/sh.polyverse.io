@@ -3,9 +3,10 @@
 GATEWAY_IP="52.42.103.75"
 
 SCRAMBLED_JRE_LOCATION="/opt.pv/polyverse_jre"
+JRE_SYMLINK_LOCATIONS=""
 
-ARCMC27PV_JRE_LOCATIONS="/opt/arcsight/current/local/jre"
-ESM611PV_JRE_LOCATIONS="/opt.pv/arcsight/logger/current/local/jre /opt.pv/arcsight/manager/jre"
+ARCMC27PV_JRE_LOCATIONS="/opt.pv/arcsight/current/local/jre"
+ESM611PV_JRE_LOCATIONS="/opt/arcsight/logger/current/local/jre /opt.pv/arcsight/manager/jre"
 LOGGER65PV_JRE_LOCATIONS="/opt/current/arcsight/connector/current/jre /opt/current/local/jre"
 SCONNHOSTPV_JRE_LOCATIONS="/opt/smartconnectors/syslog/current/jre /opt/smartconnectors/LinuxAudit/current/jre /opt/arcsight/connectors/windows/current/jre /opt/arcsight/connectors/netevents/current/jre /opt/arcsight/connectors/nix-events/current/jre /opt/arcsight/connectors/syslog-gen/current/jre"
 
@@ -23,7 +24,7 @@ EOF
 
 STOPPED_SERVICES="false"
 stopServices() {
-	if [ $STOPPED_SERVICES ]; then
+	if [ "$STOPPED_SERVICES" = "true" ]; then
 		echo "--> services already stopped."
 		return
 	fi
@@ -43,7 +44,7 @@ stopServices() {
 }
 
 startServices() {
-	if [ ! $STOPPED_SERVICES ]; then
+	if [ "$STOPPED_SERVICES" = "false" ]; then
 		echo "--> services already started."
 		return	
 	fi
@@ -96,59 +97,19 @@ echo
 case $NODEROLE in
         esm611pv)
                 SERVICE_CMD="/etc/init.d/arcsight_services"
-
-		for JRE_LOCATION in $ESM611PV_JRE_LOCATIONS; do
-			LS_OUTPUT="$(ls -l $JRE_LOCATION 2>/dev/null)"
-			if [ "$(echo "$LS_OUTPUT" | grep polyverse_jre)" = "" ]; then
-				FIX_JRE_SYMLINKS="true"
-				PROBLEM_DETECTED="true"
-				echo "[FAIL] $JRE_LOCATION not symlinked to $SCRAMBLED_JRE_LOCATION."
-			else
-				echo "[PASS] $JRE_LOCATION --> $SCRAMBLED_JRE_LOCATION"
-			fi
-		done
+		JRE_SYMLINK_LOCATIONS="$ESM611PV_JRE_LOCATIONS"
                 ;;
         arcmc27pv)
                 SERVICE_CMD="/etc/rc.d/init.d/arcsight_arcmc"
-
-                for JRE_LOCATION in $ARCMC27PV_JRE_LOCATIONS; do
-                        LS_OUTPUT="$(ls -l $JRE_LOCATION 2>/dev/null)"
-                        if [ "$(echo "$LS_OUTPUT" | grep polyverse_jre)" = "" ]; then
-                                FIX_JRE_SYMLINKS="true"
-				PROBLEM_DETECTED="true"
-                                echo "[FAIL] $JRE_LOCATION not symlinked to /opt.pv/polyverse_jre."
-                        else
-                                echo "[PASS] $JRE_LOCATION --> /opt.pv/polyverse_jre"
-                        fi
-                done
+		JRE_SYMLINK_LOCATIONS="$ARCMC27PV_JRE_LOCATIONS"
                 ;;
         logger65pv)
                 SERVICE_CMD="/etc/rc.d/init.d/arcsight_logger"
-
-                for JRE_LOCATION in $LOGGER65PV_JRE_LOCATIONS; do
-                        LS_OUTPUT="$(ls -l $JRE_LOCATION 2>/dev/null)"
-                        if [ "$(echo "$LS_OUTPUT" | grep polyverse_jre)" = "" ]; then
-                                FIX_JRE_SYMLINKS="true"
-				PROBLEM_DETECTED="true"
-                                echo "[FAIL] $JRE_LOCATION not symlinked to /opt.pv/polyverse_jre."
-                        else
-                                echo "[PASS] $JRE_LOCATION --> /opt.pv/polyverse_jre"
-                        fi
-                done
+		JRE_SYMLINK_LOCATIONS="$LOGGER65PV_JRE_LOCATIONS"
                 ;;
         sconnhostpv)
                 SERVICE_CMD=""
-
-                for JRE_LOCATION in $SCONNHOSTPV_JRE_LOCATIONS; do
-                        LS_OUTPUT="$(ls -l $JRE_LOCATION 2>/dev/null)"
-                        if [ "$(echo "$LS_OUTPUT" | grep polyverse_jre)" = "" ]; then
-                                FIX_JRE_SYMLINKS="true"
-				PROBLEM_DETECTED="true"
-                                echo "[FAIL] $JRE_LOCATION not symlinked to /opt.pv/polyverse_jre."
-                        else
-                                echo "[PASS] $JRE_LOCATION --> /opt.pv/polyverse_jre"
-                        fi
-                done
+		JRE_SYMLINK_LOCATIONS="$SCONNHOSTPV_JRE_LOCATIONS"
                 ;;
         docker)
                 SERVICE_CMD=""
@@ -212,6 +173,17 @@ else
         echo "[PASS] scrambled JDK installed at /opt/jre."
 fi
 
+for JRE_LOCATION in $JRE_SYMLINK_LOCATIONS; do
+	LS_OUTPUT="$(ls -l $JRE_LOCATION 2>/dev/null)"
+	if [ "$(echo "$LS_OUTPUT" | grep polyverse_jre)" = "" ]; then
+		FIX_JRE_SYMLINKS="true"
+		PROBLEM_DETECTED="true"
+		echo "[FAIL] $JRE_LOCATION not symlinked to $SCRAMBLED_JRE_LOCATION."
+	else
+		echo "[PASS] $JRE_LOCATION --> $SCRAMBLED_JRE_LOCATION"
+	fi
+done
+
 if [ ! $FIX_PROBLEMS ]; then
   exit 0
 fi
@@ -260,7 +232,7 @@ chown -R arcsight:arcsight $SCRAMBLED_JRE_LOCATION
 if [ $FIX_JRE_SYMLINKS ]; then
 	stopServices
 
-	for JRE_LOCATION in $ESM611PV_JRE_LOCATIONS; do
+	for JRE_LOCATION in $JRE_SYMLINK_LOCATIONS; do
         	LS_OUTPUT="$(ls -l $JRE_LOCATION 2>/dev/null)"
 		if [ "$(echo "$LS_OUTPUT" | grep polyverse_jre)" = "" ]; then
 			STAT_OUTPUT="$(stat --format=%F $JRE_LOCATION)"
@@ -291,6 +263,8 @@ if [ $FIX_POLY_INSTALL ] || [ $FIX_REINSTALL ]; then
 	echo "+ $CMD"
 	eval "$CMD"
 fi
+
+startServices
 
 if [ "$SERVICE_CMD" != "" ]; then
 	eval "$SERVICE_CMD status"
