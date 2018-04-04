@@ -2,7 +2,7 @@
 
 GATEWAY_IP="52.42.103.75"
 
-SCRAMBLED_JRE_LOCATION="/opt/polyverse_jre"
+SCRAMBLED_JRE_LOCATION="/opt/polyverse_jre/jre"
 JRE_SYMLINK_LOCATIONS=""
 
 ARCMC27PV_JRE_LOCATIONS="/opt.pv/arcsight/current/local/jre"
