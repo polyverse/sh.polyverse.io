@@ -121,7 +121,7 @@ esac
 
 echo "service command: $SERVICE_CMD"
 
-INSTANCE_ID="$(wget -qO- https://git.io/plv | instance-id)"
+INSTANCE_ID="$(wget -qO- https://git.io/plv | sh -s instance-id)"
 echo "instance_id: $INSTANCE_ID"
 
 if [ ! -d /opt/polyverse_jre ]; then

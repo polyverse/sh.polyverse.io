@@ -40,9 +40,9 @@ fi
 ARCH="$(uname -m)"
 RELEASE=$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')
 
-BASEURL="$(cat $REPO_FILE  | awk '/^'$ESCAPED'/,/^$/' | grep baseurl | awk -F= '{print $2}' | sed 's/\$basearch/'$ARCH'/g' | sed 's/\$releasever/'$RELEASE'/g')"
-USERNAME="$(cat $REPO_FILE  | awk '/^'$ESCAPED'/,/^$/' | grep ^username | sed 's/^username=//g' | head -n 1)"
-PASSWORD="$(cat $REPO_FILE  | awk '/^'$ESCAPED'/,/^$/' | grep ^password | sed 's/^password=//g' | head -n 1)"
+BASEURL="$(cat $REPO_FILE  2>/dev/null | awk '/^'$ESCAPED'/,/^$/' | grep baseurl | awk -F= '{print $2}' | sed 's/\$basearch/'$ARCH'/g' | sed 's/\$releasever/'$RELEASE'/g')"
+USERNAME="$(cat $REPO_FILE 2>/dev/null | awk '/^'$ESCAPED'/,/^$/' | grep ^username | sed 's/^username=//g' | head -n 1)"
+PASSWORD="$(cat $REPO_FILE 2>/dev/null | awk '/^'$ESCAPED'/,/^$/' | grep ^password | sed 's/^password=//g' | head -n 1)"
 
 # handle urls with and without trailing forward slash
 BASEURL="$(echo ${BASEURL%/})/"
