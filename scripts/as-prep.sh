@@ -242,8 +242,8 @@ if [ $FIX_JRE_SYMLINKS ]; then
 	stopServices
 
 	for JRE_LOCATION in $JRE_SYMLINK_LOCATIONS; do
-        	LS_OUTPUT="$(ls -l $JRE_LOCATION 2>/dev/null)"
-		if [ "$(echo "$LS_OUTPUT" | grep polyverse_jre)" = "" ]; then
+        	CURRENT_LINK="$(ls -l $JRE_LOCATION | rev | cut -d' ' -f1 | rev)"
+        	if [ "$CURRENT_LINK" != "$SCRAMBLED_JRE_LOCATION" ]; then
 			STAT_OUTPUT="$(stat --format=%F $JRE_LOCATION)"
 			if [ "$STAT_OUTPUT" = "symbolic link" ]; then
 				CMD="rm -f $JRE_LOCATION"
