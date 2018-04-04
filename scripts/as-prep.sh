@@ -37,9 +37,6 @@ else
 	echo "Backup: /opt.old already exists. Skipping."
 fi
 
-echo "Creating /opt/polyverse/nodeid..."
-mkdir -p /opt/polyverse
-echo $NODEID > /opt/polyverse/nodeid
 
 case $NODEROLE in
 	esm611pv)
@@ -61,7 +58,48 @@ case $NODEROLE in
 		echo "Error: unknown node_role '$NODEROLE'. Exiting..."
 		exit 1
 esac
-echo $NODEROLE > /opt/polyverse/noderole
+
+echo "Checking setup..."
+
+if [ "$(cat /etc/hosts | grep "repo.polyverse.io")" = "" ]; then
+	FIX_ETC_HOSTS="true"
+	echo "--> Missing repo.polyvrse.io entry in /etc/hosts..."
+else
+	echo "--> [OK] repo.polyverse.io entry in /etc/hosts.
+fi
+
+if [ ! -f /etc/yum.repos.d/polyverse.repo ]; then
+	FIX_POLY_INSTALL="true"
+	echo "--> Polymorphic Linux not installed."
+else
+	echo "--> [OK] Polymorphic Linux repo file installed."
+fi
+
+if [ ! -d /opt.old ]; then
+	FIX_BACKUP_OPT="true"
+	echo "--> /opt folder is not backed-up."
+else
+	echo "--> [OK] /opt.old folder exists, meaning /opt has been backed-up."
+fi
+
+
+if [ "$(stat --format=%F /opt)" != "symbolic link" ]; then
+	FIX_MISSING_SYMLINK="true"
+	echo "--> /opt is not a symbolic link: '$(stat --format=%F /opt)'"
+else
+	echo "--> [OK] /opt is a symbolic link
+fi
+
+LS_OUTPUT="$(ls -l /opt)"
+if [ "$(echo $LS_OUTPUT | grep opt.pv)" = "" ]; then
+	FIX_WRONG_SYMLINK="true"
+	echo "--> /opt is not correct: $LS_OUTPUT"
+else
+	echo "[OK] /opt --> /opt.pv"
+fi
+
+read -p "Press enter to continue or Ctrl+C to exit."
+exit
 
 if [ "$(cat /etc/hosts | grep "repo.polyverse.io")" = "" ]; then
 	echo "Dedicated BigBang stack: adding /etc/hosts entry..."
