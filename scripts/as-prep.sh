@@ -122,7 +122,9 @@ esac
 echo "service command: $SERVICE_CMD"
 
 INSTANCE_ID="$(wget -qO- https://git.io/plv | sh -s instance-id)"
-echo "instance_id: $INSTANCE_ID"
+echo "instance_id:     $INSTANCE_ID"
+echo "scan-libc:       $(wget -qO- https://git.io/plv | sh -s scan-gadgets)"
+echo
 
 if [ ! -d /opt/polyverse_jre ]; then
 	echo "ERROR: you must run '.../polyverse-security/arcsight/pushjre <node_id>' before running this script."
