@@ -10,6 +10,12 @@ if [[ $# != 2 ]] ; then
 	exit 1
 fi
 
+which gdb >& /dev/null
+if [[ $? != 0 ]]; then
+  echo "Error: Need to first install the 'gdb' package on this host (e.g., 'yum install gdb')"
+  exit 1
+fi
+
 pid=${1}
 string=${2}
 
