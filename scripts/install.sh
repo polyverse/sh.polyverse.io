@@ -326,7 +326,7 @@ if [ "$op" = "install" ]; then
 		A="$(decode $(echo $PFRAC | awk -F'_' '{print $4}'))"
 		C="$(decode $(echo $PFRAC | awk -F'_' '{print $5}'))"
 
-		URL="https://repo.polyverse.io/register?authKey=$AUTH_KEY&nodeID=$NODE_ID&distro=$DISTRO&project=$P&format=$F&release=$R&arch=$A&component=$C"
+		URL="https://repo.polyverse.io/register?authKey=$AUTH_KEY&nodeID=${NODE_ID}_${PFRAC}&nodeName=$NODE_ID&distro=$DISTRO&project=$P&format=$F&release=$R&arch=$A&component=$C"
 		echo "$URL"
 
 		# 'wget --content-on-error -qO- "$URL"' doesn't work reliably across distros
