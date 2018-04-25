@@ -20,8 +20,8 @@ else
         	exit 1
 	fi
 
-	USAGE_SOURCE="wget -qO- --no-cache https://raw.githubusercontent.com/polyverse/plv/master/usage.txt"
-	SCRIPT_SOURCE="wget -qO- --no-cache https://raw.githubusercontent.com/polyverse/plv/master/scripts/$1.sh"
+	USAGE_SOURCE="wget -qO- --no-cache https://raw.githubusercontent.com/polyverse/sh.polyverse.io/master/usage.txt"
+	SCRIPT_SOURCE="wget -qO- --no-cache https://raw.githubusercontent.com/polyverse/sh.polyverse.io/master/scripts/$1.sh"
 fi
 
 
