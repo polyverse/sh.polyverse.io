@@ -87,7 +87,6 @@ function GetPackageURL() {
         local FILENAME="$1"
 
         for URL in $URLs; do
-		(>&2 echo "Checking $URL...")
                 if [ ! -z "$(curl -sI $URL/$FILENAME | grep "200 OK")" ]; then
                         echo "$URL/$FILENAME"
                         return 0
