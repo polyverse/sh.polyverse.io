@@ -31,6 +31,12 @@ LOCS="$LOCS http://vault.centos.org/7.3.1611/os/x86_64/Packages"
 LOCS="$LOCS http://vault.centos.org/7.3.1611/updates/x86_64/Packages"
 LOCS="$LOCS http://mirror.centos.org/centos/7.4.1708/os/x86_64/Packages/"
 LOCS="$LOCS http://mirror.centos.org/centos/7.4.1708/updates/x86_64/Packages/"
+LOGS="$LOCS http://archives.fedoraproject.org/pub/archive/fedora/linux/releases/23/Everything/x86_64/os/"
+LOGS="$LOCS http://download.fedoraproject.org/pub/archive/fedora/linux/updates/23/x86_64/"
+LOGS="$LOCS http://archives.fedoraproject.org/pub/archive/fedora/linux/releases/24/Everything/x86_64/os/"
+LOGS="$LOCS http://download.fedoraproject.org/pub/archive/fedora/linux/updates/24/x86_64/"
+LOGS="$LOCS http://archives.fedoraproject.org/pub/archive/fedora/linux/releases/25/Everything/x86_64/os/"
+LOGS="$LOCS http://download.fedoraproject.org/pub/archive/fedora/linux/updates/25/x86_64/"
 
 function GetPackageURL() {
         FILENAME="$1"
