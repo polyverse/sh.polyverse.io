@@ -1,5 +1,7 @@
 #!/bin/sh
 
+SHORT_DESCRIPTION="give it an rpm/deb/apk package name and get url from official repo."
+
 function apk_alpine() {
         (>&2 echo "error: support for alpine not yet implemented.")
         return 1
@@ -111,6 +113,8 @@ function GetPackageURL() {
 
         return 1
 }
+
+shift
 
 FORMAT="$(get_format $1)"
 if [ $? -ne 0 ]; then exit 1; fi
