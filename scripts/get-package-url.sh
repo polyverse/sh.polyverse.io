@@ -6,7 +6,23 @@ function apk_alpine() {
 }
 
 function deb_ubuntu() {
-	(>&2 echo "error: support for ubuntu not yet implemented.")
+	local FILENAME="$1"
+	local FIRST_LETTER=${FILENAME:0:1}
+
+	URLs=""
+	local F1="$(echo $FILENAME | awk -F'_' '{print $1}')"
+	local F2=""
+	while true; do
+		URLs="$URLs http://archive.ubuntu.com/ubuntu/pool/main/$FIRST_LETTER/$F1"
+		F2="$(echo $F1 | sed -e 's/\(-.*\)*$//g')"
+
+		if [ "$F1" = "$F2" ]; then
+			return 0
+		fi
+
+		F1="$F2"
+	done
+
 	return 1
 }
 
