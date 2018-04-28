@@ -1,26 +1,39 @@
 #!/bin/sh
 
-if [ -z "$PV_BASE_URL" ]; then
-	PV_BASE_URL="https://sh.polyverse.io"
-fi
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
 
 #******************************************************************************#
 #                                 functions                                    #
 #******************************************************************************#
 
+eval_or_exit() {
+	CMD="$1"
+        RESULT="$($CMD 2>&1)"
+	EXIT_CODE=$?
+        if [ $EXIT_CODE -ne 0 ]; then
+                (>&2 echo "error: '$CMD' failed with '$RESULT'.")
+		exit $EXIT_CODE
+        fi
+        echo "$RESULT"
+}
+
 usage_and_exit() {
-	curl -s $PV_BASE_URL/usage.txt
-	if [ $? -ne 0 ]; then
-		echo "error: unable to curl '$PV_BASE_URL/usage.txt'."
-	fi
-	exit 1
+	eval_or_exit "curl -sS $PV_BASE_URL/usage.txt"
 }
 
 precheck() {
-	local CONTENT_LENGTH="$(curl -sI $1 | grep -i "content-length" | awk -F':' '{print $2}')"
+	# exit on hard curl failures (e.g., unsupported protocol)
+	HTTP_RESPONSE="$(eval_or_exit "curl -sSI $1")"; EXIT_CODE=$?
+	if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
+
+	# 200 (specifically non-zero content-length) means script is found
+	CONTENT_LENGTH="$(curl -sI $1 | grep -i content-length | awk -F':' '{print $2}')"
+	if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
+
 	if [ "$CONTENT_LENGTH" != "" ] && [ "$CONTENT_LENGTH" != "0" ]; then
 		return 0
 	fi
+
 	return 1
 }
 
@@ -33,7 +46,7 @@ if [ $# -eq 0 ]; then
 fi
 
 SUBCMD=""
-while (( $# )) ; do
+while [ $# -gt 0 ] ; do
 	case $1 in
 		-h | --help | help)
 			usage_and_exit
@@ -49,9 +62,9 @@ done
 
 precheck "$PV_BASE_URL/scripts/$SUBCMD"
 if [ $? -ne 0 ]; then
-	echo "error: unrecognized subcommand '$SUBCMD'."
+	echo "error: unknown subcommand '$SUBCMD'."
 	exit 1
 fi
 
-eval "curl -s $PV_BASE_URL/scripts/$SUBCMD | sh -s $ARGS"
+eval "curl -sS $PV_BASE_URL/scripts/$SUBCMD | sh -s $ARGS"
 exit $?

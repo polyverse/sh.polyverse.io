@@ -40,6 +40,11 @@ yum_list() {
 	done
 }
 
+shift
+PLV_DISTRO=$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')
+PLV_RELEASE=$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')
+PLV_ARCH="$(uname -m)"
+
 case $PLV_DISTRO in
 	alpine)
 		LIST_FUNC="apk_list"
@@ -55,6 +60,7 @@ case $PLV_DISTRO in
 		exit 1
 		;;
 esac
+
 
 TEMP_FILE=`mktemp`
 

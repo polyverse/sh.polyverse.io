@@ -1,23 +1,20 @@
-# plv
+# sh.polyverse.io
 
-`plv` is a CLI front-end for Polymorphic Linux helper scripts.
+These are a set of scripts designed to provide a suite of "no install" utilities for customers of Polymorphic Linux.
 
-The url https://git.io/plv is a shortened version of https://github.com/polyverse/plv/blob/master/main.sh, and all the scripts are available on our public GitHub repo https://github.com/polyverse/plv.
+Usage: `curl https://sh.polyverse.io | sh -s <subcommand> [<options>]`
 
-There are 2 ways to use this:
+## Development
 
-### No Install
-You can run this without anything being installed on your system with the following command:
-```
-wget -qO- https://git.io/plv | sudo sh -s help
-```
-This example will display the tools help. You can replace "help" with any of the listed subcommands.
+Subcommands can be added by adding an additional script to the `scripts/` folder. A few guidelines:
 
-### Install
-To make the command-line easier, you can download it to a folder that is part of your PATH:
-```
-sudo wget -O /usr/bin/plv https://git.io/plv
-sudo chmod +x /usr/bin/plv
-plv help
-```
-At this point, you can just run a subcommand with `plv <subcommand>`.
+* scripts should be sh-compatible (meaning no bash). The first line should be `#!/bin/sh`.
+* if you want to read command-line arguments, you must `shift` once beforehand. This is because the script is piped to `sh -s` which expects 
+
+## Deployment
+
+Deployments are done automatically using AWS CloudPipeline; they're triggered when commits are pushed to https://github.com/polyverse/sh.polyverse.io.
+
+
+There are 2 pipelines, one that corresponds to the `master` branch and another for the `beta` branch. Developers can use the `beta` branch and should feel free to push early and often without worrying about breaking anything. Changes to the `master` branch must happen via GitHub PR.
+

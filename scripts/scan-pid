@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 shift
 
@@ -7,13 +7,13 @@ if [ $(id -u) -ne 0 ]; then
         exit 1
 fi
 
-if [[ $# != 2 ]] ; then
+if [ $# -ne 2 ]; then
 	echo "usage: plv scan-pid pid string"
 	exit 1
 fi
 
-which gdb >& /dev/null
-if [[ $? != 0 ]]; then
+gdb --version 2>&1 >/dev/null
+if [ $? -ne 0 ]; then
   echo "Error: Need to first install the 'gdb' package on this host (e.g., 'yum install gdb')"
   exit 1
 fi
@@ -38,7 +38,7 @@ for line in $(cat maps); do
 	stop=$(echo -n ${line} | sed -n 's/^\([0-9a-f]*\)-\([0-9a-f]*\) .*$/\1 \2/p' | cut -d" " -f2)
         perm=$(echo -n ${line} | cut -d" " -f2)
 
-        if [[ ${perm} == "---p" ]]; then
+        if [ ${perm} = "---p" ]; then
                 echo "[-PRIVATE-] ${line}"
         else
                 filename="${pid}-${start}-${stop}.dump"
@@ -57,4 +57,3 @@ done
 
 cd ..
 IFS=${oIFS}
-
