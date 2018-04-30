@@ -1,0 +1,6 @@
+################################################################################
+
+For help on a subcommand, run `curl https://sh.polyverse.io | sh -s <subcommand> --help`.
+
+If you encounter any issues, please contact us at support@polyverse.io, or 
+create a GitHub issue at https://github.com/polyverse/sh.polyverse.io.

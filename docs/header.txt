@@ -1,0 +1,8 @@
+################################################################################
+https://sh.polyverse.io serves utility scripts for Polyverse customers.
+Copyright © 2018 Polyverse Corporation. All rights reserved.
+
+usage: curl -s https://sh.polyverse.io | sh -s <subcommand> [<options>]
+
+Available subcommands:
+

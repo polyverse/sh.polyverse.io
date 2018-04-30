@@ -1,5 +1,7 @@
 #!/bin/sh
 
+SHORT_DESCRIPTION="Scan all mapped memory in a PID for a string (e.g. "-PV-")."
+
 shift
 
 if [ $(id -u) -ne 0 ]; then

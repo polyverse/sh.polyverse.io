@@ -1,10 +1,13 @@
 #!/bin/bash
 
+SHORT_DESCRIPTION="Scan all all processes that match parameter 1 and for each of those processes, get list of open .so files and look for see the number of times that the string given in parameter 2 is found."
+
 if [ $(id -u) -ne 0 ]; then
         echo "This script must be run as root. Please try running this again as a sudo or root user." 1>&2
         exit 1
 fi
 
+shift
 if [[ $# != 2 ]] ; then
 	echo "usage: plv scan-pname pname string"
 	exit 1
