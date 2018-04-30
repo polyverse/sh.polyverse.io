@@ -40,7 +40,7 @@ rpm_fedora() {
 
 	URLs=""
 	URLs="$URLs http://archives.fedoraproject.org/pub/archive/fedora/linux/releases/${RELEASE}/Everything/x86_64/os/Packages/${FIRST_LETTER}"
-	URLs="$URLs http://download.fedoraproject.org/pub/archive/fedora/linux/updates/${RELEASE}/x86_64/Packages/${FIRST_LETTER}"
+	URLs="$URLs http://download.fedoraproject.org/pub/archive/fedora/linux/updates/${RELEASE}/x86_64/${FIRST_LETTER}"
 
 	return 0
 }
@@ -105,7 +105,7 @@ GetPackageURL() {
         FILENAME="$1"
 
         for URL in $URLs; do
-                if [ ! -z "$(curl -sI $URL/$FILENAME | grep "200 OK")" ]; then
+                if [ ! -z "$(curl -sIL $URL/$FILENAME | grep "200 OK")" ]; then
                         echo "$URL/$FILENAME"
                         return 0
                 fi
