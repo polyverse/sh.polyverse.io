@@ -9,8 +9,9 @@ Usage: `curl https://sh.polyverse.io | sh -s <subcommand> [<options>]`
 Subcommands can be added by adding an additional script to the `scripts/` folder. A few guidelines:
 
 * Scripts should be sh-compatible (meaning no bash). The first line should be `#!/bin/sh`.
-* If you want to read command-line arguments, you must `shift` once beforehand. This is because the subcommand is passed as $1 to prevent `sh -s` from processing subcommand options as `sh` options.
+* Before processing command-line arguments, you must `shift` once beforehand. This is because the subcommand is passed as `$1` to prevent `sh -s` from processing subcommand options as `sh` options.
 * Include `SHORT_DESCRIPTION="<some description>"` in the script somewhere for it to be published as part of the parent script's usage.
+* Always support the `--help` option.
 
 ## Testing
 
@@ -30,9 +31,11 @@ curl https://sh-beta.polyverse.io | PV_BASE_URL="https://sh-beta.polyverse.io" s
 
 Deployments are done automatically using AWS CloudPipeline; they're triggered when commits are pushed to https://github.com/polyverse/sh.polyverse.io.
 
+Before committing/pushing, run `./build.sh`. This re-generates the `./usage.txt` file.
+
 There are 2 pipelines:
 
-1. Developers should use the `beta` branch and push early and often without worrying about breaking production.
-2. Developers should never publish directly to the `master` branch; all production deployments must be the result of a PR request.
+1. https://sh-beta.polyverse.io - Developers should use the `beta` branch and push early and often without worrying about breaking production.
+2. https://sh.polyverse.io - Developers should never publish directly to the `master` branch; all production deployments must be the result of a PR request.
 
 AWS CloudPipeline pulls the commit and places them in an AWS S3 bucket which is then served directly via AWS CloudFront.
