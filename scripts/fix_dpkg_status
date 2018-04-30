@@ -1,5 +1,7 @@
 #!/bin/sh
 
+SHORT_DESCRIPTION="apt-based installations may incorrectly mark an identical package coming from repo.polyverse.io as "upgrade" instead of "reinstall". This is due to slight differences in the packages metadata (e.g., "Installed-Size:"). This subcommand will reconcile these records in /var/lib/dpkg/status."
+
 ################################################################################
 
 ################################################################################

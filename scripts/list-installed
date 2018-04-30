@@ -1,5 +1,7 @@
 #!/bin/sh
 
+SHORT_DESCRIPTION="List installed packages, version and source repo."
+
 apk_list() {
 	INSTALLED="$(apk info 2>/dev/null)"
 
