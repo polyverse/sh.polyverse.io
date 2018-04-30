@@ -1,62 +1,70 @@
 #!/bin/sh
 
-# LOCAL_MODE makes development easier; otherwise, any change would require git commit/push to test.
-# You must run plv from the git project repo's top folder to enable this mode.
-LOCAL_MODE=false
-if [ -d "scripts" ] && [ -f "plv" ]; then
-        LOCAL_MODE=true
-fi
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
 
-if $LOCAL_MODE; then
-	(>&2 echo "(local mode)" )
+#******************************************************************************#
+#                                 functions                                    #
+#******************************************************************************#
 
-	USAGE_SOURCE="cat usage.txt"
-	SCRIPT_SOURCE="cat scripts/$1.sh"
-else
-	# make sure wget is installed
-	wget -V >/dev/null 2>&1
-	if [ $? -ne 0 ]; then
-        	echo "Error: please install wget."
-        	exit 1
+eval_or_exit() {
+	CMD="$1"
+        RESULT="$($CMD 2>&1)"
+	EXIT_CODE=$?
+        if [ $EXIT_CODE -ne 0 ]; then
+                (>&2 echo "error: '$CMD' failed with '$RESULT'.")
+		exit $EXIT_CODE
+        fi
+        echo "$RESULT"
+}
+
+usage_and_exit() {
+	eval_or_exit "curl -sS $PV_BASE_URL/usage.txt"
+}
+
+precheck() {
+	# exit on hard curl failures (e.g., unsupported protocol)
+	HTTP_RESPONSE="$(eval_or_exit "curl -sSI $1")"; EXIT_CODE=$?
+	if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
+
+	# 200 (specifically non-zero content-length) means script is found
+	CONTENT_LENGTH="$(curl -sI $1 | grep -i content-length | awk -F':' '{print $2}')"
+	if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
+
+	if [ "$CONTENT_LENGTH" != "" ] && [ "$CONTENT_LENGTH" != "0" ]; then
+		return 0
 	fi
 
-	USAGE_SOURCE="wget -qO- --no-cache https://raw.githubusercontent.com/polyverse/sh.polyverse.io/master/usage.txt"
-	SCRIPT_SOURCE="wget -qO- --no-cache https://raw.githubusercontent.com/polyverse/sh.polyverse.io/master/scripts/$1.sh"
+	return 1
+}
+
+#******************************************************************************#
+#                                    main                                      #
+#******************************************************************************#
+
+if [ $# -eq 0 ]; then
+	usage_and_exit
 fi
 
+SUBCMD=""
+while [ $# -gt 0 ] ; do
+	case $1 in
+		-h | --help | help)
+			usage_and_exit
+			;;
+		*)
+			if [ -z "$SUBCMD" ]; then
+				SUBCMD="$1"
+			fi
+			ARGS="$ARGS \"$1\""
+	esac
+	shift
+done
 
-if [ $# -eq 0 ] || [ "$1" = "help" ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-        eval $USAGE_SOURCE
-        exit 1
-fi
-
-# export variables that may be useful for downstream scripts.
-export PLV_DISTRO=$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')
-export PLV_RELEASE=$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')
-export PLV_ARCH="$(uname -m)"
-
-# retrieve the script source into a temp file
-TEMPFILE=`mktemp -t pv.XXXXXX`
-CMD="eval \"$SCRIPT_SOURCE\" > $TEMPFILE"
-#(>&2 echo "+ $CMD" )
-eval "$CMD" 2>/dev/null
+precheck "$PV_BASE_URL/scripts/$SUBCMD"
 if [ $? -ne 0 ]; then
-	echo "Error: unsupported subcommand '$1'."
+	echo "error: unknown subcommand '$SUBCMD'."
 	exit 1
 fi
-shift
 
-CMD="cat $TEMPFILE | sh -s $@"
-#(>&2 echo "+ $CMD" )
-eval "$CMD"
-EXIT_CODE=$?
-
-# remove the tempfile if the script executed successfully
-if [ $EXIT_CODE -eq 0 ]; then
-	CMD="rm $TEMPFILE"
-	#(>&2 echo "+ $CMD" )
-	eval "$CMD"
-	exit 0
-fi
-
-exit $EXIT_CODE
+eval "curl -sS $PV_BASE_URL/scripts/$SUBCMD | sh -s $ARGS"
+exit $?

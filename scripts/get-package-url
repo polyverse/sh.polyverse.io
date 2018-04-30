@@ -1,17 +1,19 @@
 #!/bin/sh
 
-function apk_alpine() {
+SHORT_DESCRIPTION="give it an rpm/deb/apk package name and get url from official repo."
+
+apk_alpine() {
         (>&2 echo "error: support for alpine not yet implemented.")
         return 1
 }
 
-function deb_ubuntu() {
-	local FILENAME="$1"
-	local FIRST_LETTER=${FILENAME:0:1}
+deb_ubuntu() {
+	FILENAME="$1"
+	FIRST_LETTER=${FILENAME:0:1}
 
 	URLs=""
-	local F1="$(echo $FILENAME | awk -F'_' '{print $1}')"
-	local F2=""
+	F1="$(echo $FILENAME | awk -F'_' '{print $1}')"
+	F2=""
 	while true; do
 		URLs="$URLs http://archive.ubuntu.com/ubuntu/pool/main/$FIRST_LETTER/$F1"
 		F2="$(echo $F1 | sed -e 's/\(-.*\)*$//g')"
@@ -26,10 +28,10 @@ function deb_ubuntu() {
 	return 1
 }
 
-function rpm_fedora() {
-	local FILENAME="$1"
-	local RELEASE="$(echo $FILENAME | sed 's/.*fc\([0-9][0-9]\).*/\1/')"
-	local FIRST_LETTER=${FILENAME:0:1}
+rpm_fedora() {
+	FILENAME="$1"
+	RELEASE="$(echo $FILENAME | sed 's/.*fc\([0-9][0-9]\).*/\1/')"
+	FIRST_LETTER=${FILENAME:0:1}
 
 	if [ -z "$RELEASE" ]; then
 		(>&2 echo "error: unable to determine fedora release for '$FILENAME'.")
@@ -38,13 +40,13 @@ function rpm_fedora() {
 
 	URLs=""
 	URLs="$URLs http://archives.fedoraproject.org/pub/archive/fedora/linux/releases/${RELEASE}/Everything/x86_64/os/Packages/${FIRST_LETTER}"
-	URLs="$URLs http://download.fedoraproject.org/pub/archive/fedora/linux/updates/${RELEASE}/x86_64/Packages/${FIRST_LETTER}"
+	URLs="$URLs http://download.fedoraproject.org/pub/archive/fedora/linux/updates/${RELEASE}/x86_64/${FIRST_LETTER}"
 
 	return 0
 }
 
-function rpm_centos() {
-	local RELEASES="6.0 6.1 6.2 6.3 6.4 6.5 6.6 6.7 6.8 6.9 7.0.1406 7.1.1503 7.2.1511 7.3.1611"
+rpm_centos() {
+	RELEASES="6.0 6.1 6.2 6.3 6.4 6.5 6.6 6.7 6.8 6.9 7.0.1406 7.1.1503 7.2.1511 7.3.1611"
 
 	URLs=""
 	for RELEASE in $RELEASES; do
@@ -58,9 +60,9 @@ function rpm_centos() {
 	return 0
 }
 
-function get_format() {
-	local FILENAME="$1"
-	local FORMAT="${FILENAME##*.}"
+get_format() {
+	FILENAME="$1"
+	FORMAT="${FILENAME##*.}"
 
 	if [ "$FORMAT" != "rpm" ] && [ "$FORMAT" != "apk" ] && [ "$FORMAT" != "deb" ]; then
 		(>&2 echo "error: unsupported type '$FORMAT'")
@@ -71,10 +73,10 @@ function get_format() {
 	return 0
 }
 
-function get_project() {
-	local FILENAME="$1"
-	local FORMAT="$(get_format $FILENAME)"
-	local PROJECT=""
+get_project() {
+	FILENAME="$1"
+	FORMAT="$(get_format $FILENAME)"
+	PROJECT=""
 
 	case $FORMAT in
 		apk)
@@ -99,11 +101,11 @@ function get_project() {
 	return 0		
 }
 
-function GetPackageURL() {
-        local FILENAME="$1"
+GetPackageURL() {
+        FILENAME="$1"
 
         for URL in $URLs; do
-                if [ ! -z "$(curl -sI $URL/$FILENAME | grep "200 OK")" ]; then
+                if [ ! -z "$(curl -sIL $URL/$FILENAME | grep "200 OK")" ]; then
                         echo "$URL/$FILENAME"
                         return 0
                 fi
@@ -111,6 +113,8 @@ function GetPackageURL() {
 
         return 1
 }
+
+shift
 
 FORMAT="$(get_format $1)"
 if [ $? -ne 0 ]; then exit 1; fi
