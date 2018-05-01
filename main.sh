@@ -41,16 +41,13 @@ precheck() {
 #                                    main                                      #
 #******************************************************************************#
 
-if [ $# -eq 0 ]; then
+if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ] || [ "$1" = "help" ]; then
 	usage_and_exit
 fi
 
 SUBCMD=""
 while [ $# -gt 0 ] ; do
 	case $1 in
-		-h | --help | help)
-			usage_and_exit
-			;;
 		*)
 			if [ -z "$SUBCMD" ]; then
 				SUBCMD="$1"
