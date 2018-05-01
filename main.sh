@@ -19,6 +19,7 @@ eval_or_exit() {
 
 usage_and_exit() {
 	eval_or_exit "curl -sS $PV_BASE_URL/usage.txt"
+	exit 1
 }
 
 precheck() {

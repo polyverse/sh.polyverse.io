@@ -1,5 +1,23 @@
 #!/bin/sh
 
+SHORT_DESCRIPTION="Install Polymorphic Linux"
+
+usage() {
+cat >&2 <<-EOF
+
+Install Polymorphic Linux.
+
+Usage:
+
+  curl https://sh.polyverse.io | sh -s install [<options>] <authkey> [<nodeid>]
+
+Options:
+
+  --help                 Display usage.
+
+EOF
+}
+
 display_reinstall_cmd() {
   echo
   echo "@@@@@   @@@@@@@@"
@@ -100,6 +118,18 @@ rpm_install() {
 	FILE='/etc/yum.repos.d/polyverse.repo'
 
 	curl https://repo.polyverse.io/config/rpm/7/key -o "/etc/pki/RPM-GPG-KEY-Polyverse"
+
+        # create a backup file
+        if [ ! -f "${FILE}.pvbak" ]; then
+                echo "Backing up .repo files to .repo.pvbak..."
+		for x in /etc/yum.repos.d/*.repo; do mv "$x" "${x}.pvbak"; done
+                if [ $? -ne 0 ]; then
+                        echo "Unable to create backup file. This is unexpected, so exiting..."
+                        exit 1
+                fi
+        else
+                echo "Backup files *.pvbak already exists, so we'll leave it alone."
+        fi
 
 	printf "$1" > $FILE
 
@@ -211,8 +241,13 @@ decode() {
 PFRACs=""
 op="install"
 
+shift
 while [ $# -gt 0 ]; do
 	case "$1" in
+                --help)
+                        usage
+                        exit 1
+                        ;;
 		--add-component)
 			shift
 			PFRACs="$PFRACs $1"
@@ -240,10 +275,7 @@ fi
 
 if [ "$op" = "install" ]; then
 	if [ -z "$AUTH_KEY" ]; then
-		echo "Usage: install.sh <authkey>|uninstall [<nodeid>] [<options>]"
-		echo
-		echo "Options:"
-		echo "  --add-component <component_name>"
+		usage
 		exit 1
 	fi
 
