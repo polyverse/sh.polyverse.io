@@ -2,6 +2,27 @@
 
 SHORT_DESCRIPTION="List installed packages, version and source repo."
 
+#******************************************************************************#
+#                                 functions                                    #
+#******************************************************************************#
+
+usage() {
+cat >&2 <<-EOF
+
+List installed packages, version and source repo. Useful to check whether an
+installed package came from Polyverse.
+
+Usage:
+
+  curl https://sh.polyverse.io | sh -s list-installed [<options>]
+
+Options:
+
+  --help                 Display usage.
+
+EOF
+}
+
 apk_list() {
 	INSTALLED="$(apk info 2>/dev/null)"
 
@@ -34,7 +55,7 @@ yum_list() {
 	INSTALLED="$(yum list installed | sed -n '/^Installed Packages/,$p' | tail -n +2 | awk '{print $1}')"
 
 	for PACKAGE in $INSTALLED; do
-		INFO="$(yum info -v $PACKAGE | sed -n '/^Installed Packages/,/^$/p')"
+		INFO="$(yum info -v $PACKAGE | sed -e '/^$/,$d')"
 		VERSION="$(echo "$INFO" | grep "^Version" | awk -F: '{print $2}')"; VERSION="$(echo $VERSION)"
 		RELEASE="$(echo "$INFO" | grep "^Release" | awk -F: '{print $2}')"; RELEASE="$(echo $RELEASE)"
 		REPO_SOURCE="$(echo "$INFO" | grep "^From repo" | awk -F: '{print $2}')"; REPO_SOURCE="$(echo $REPO_SOURCE)"
@@ -42,7 +63,36 @@ yum_list() {
 	done
 }
 
+dnf_list() {
+        INSTALLED="$(dnf list installed | sed -n '/^Installed Packages/,$p' | tail -n +2 | awk '{print $1}')"
+
+        for PACKAGE in $INSTALLED; do
+                INFO="$(dnf info -v $PACKAGE | sed -e '/^$/,$d')"
+                VERSION="$(echo "$INFO" | grep "^Version" | awk -F: '{print $2}')"; VERSION="$(echo $VERSION)"
+                RELEASE="$(echo "$INFO" | grep "^Release" | awk -F: '{print $2}')"; RELEASE="$(echo $RELEASE)"
+                REPO_SOURCE="$(echo "$INFO" | grep "^From repo" | awk -F: '{print $2}')"; REPO_SOURCE="$(echo $REPO_SOURCE)"
+                echo "$PACKAGE $VERSION-$RELEASE $REPO_SOURCE" | tee -a $TEMP_FILE
+        done
+}
+
+#******************************************************************************#
+#                                    main                                      #
+#******************************************************************************#
+
 shift
+while [ $# -gt 0 ]; do
+        case "$1" in
+                --help)
+                        usage
+			exit 1 
+                        ;;
+                *)
+                        echo "Unhandled option '$1'."
+                        exit 1
+        esac
+        shift
+done
+
 PLV_DISTRO=$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')
 PLV_RELEASE=$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')
 PLV_ARCH="$(uname -m)"
@@ -51,8 +101,11 @@ case $PLV_DISTRO in
 	alpine)
 		LIST_FUNC="apk_list"
 		;;
-	centos | fedora)
+	centos | rhel)
 		LIST_FUNC="yum_list"
+		;;
+	fedora)
+		LIST_FUNC="dnf_list"
 		;;
 	ubuntu)
 		LIST_FUNC="apt_list"
@@ -62,7 +115,6 @@ case $PLV_DISTRO in
 		exit 1
 		;;
 esac
-
 
 TEMP_FILE=`mktemp`
 
