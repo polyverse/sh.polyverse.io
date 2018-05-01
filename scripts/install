@@ -1,5 +1,23 @@
 #!/bin/sh
 
+SHORT_DESCRIPTION="Install Polymorphic Linux"
+
+usage() {
+cat >&2 <<-EOF
+
+Install Polymorphic Linux.
+
+Usage:
+
+  curl https://sh.polyverse.io | sh -s install [<options>] <authkey> [<nodeid>]
+
+Options:
+
+  --help                 Display usage.
+
+EOF
+}
+
 display_reinstall_cmd() {
   echo
   echo "@@@@@   @@@@@@@@"
@@ -211,8 +229,13 @@ decode() {
 PFRACs=""
 op="install"
 
+shift
 while [ $# -gt 0 ]; do
 	case "$1" in
+                --help)
+                        usage
+                        exit 1
+                        ;;
 		--add-component)
 			shift
 			PFRACs="$PFRACs $1"
@@ -240,10 +263,7 @@ fi
 
 if [ "$op" = "install" ]; then
 	if [ -z "$AUTH_KEY" ]; then
-		echo "Usage: install.sh <authkey>|uninstall [<nodeid>] [<options>]"
-		echo
-		echo "Options:"
-		echo "  --add-component <component_name>"
+		usage
 		exit 1
 	fi
 
