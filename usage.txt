@@ -5,13 +5,23 @@ usage: curl -s https://sh.polyverse.io | sh -s <subcommand> [<options>]
 
 Available subcommands:
 
-fix_dpkg_status           apt-based installations may incorrectly mark an identical package coming from repo.polyverse.io as "upgrade" instead of "reinstall". This is due to slight differences in the packages metadata (e.g., "Installed-Size:"). This subcommand will reconcile these records in /var/lib/dpkg/status.
-get-package-url           give it an rpm/deb/apk package name and get url from official repo.
-list-installed           List installed packages, version and source repo.
-scan-pid           Scan all mapped memory in a PID for a string (e.g. "-PV-").
-scan-pname           Scan all all processes that match parameter 1 and for each of those processes, get list of open .so files and look for see the number of times that the string given in parameter 2 is found.
+fix_dpkg_status       apt-based installations may incorrectly mark an identical
+                      package coming from repo.polyverse.io as "upgrade" instead
+                      of "reinstall". This is due to slight differences in the
+                      packages metadata (e.g., "Installed-Size:"). This
+                      subcommand will reconcile these records in
+                      /var/lib/dpkg/status.
+get-package-url       give it an rpm/deb/apk package name and get url from
+                      official repo.
+install               Install Polymorphic Linux
+list-installed        List installed packages, version and source repo.
+scan-pid              Scan all mapped memory in a PID for a string (e.g. "-PV-").
+scan-pname            Scan all all processes that match parameter 1 and for each
+                      of those processes, get list of open .so files and look for
+                      see the number of times that the string given in parameter
+                      2 is found.
 
-For help on a subcommand, run `curl https://sh.polyverse.io | sh -s <subcommand> --help`.
+For help on a subcommand, run "curl https://sh.polyverse.io | sh -s <subcommand> --help".
 
-If you encounter any issues, please contact us at support@polyverse.io, or 
+If you encounter any issues, please contact us at support@polyverse.io or 
 create a GitHub issue at https://github.com/polyverse/sh.polyverse.io.
