@@ -24,11 +24,13 @@ usage_and_exit() {
 
 precheck() {
 	# exit on hard curl failures (e.g., unsupported protocol)
-	HTTP_RESPONSE="$(eval_or_exit "curl -sSI $1")"; EXIT_CODE=$?
+	HTTP_RESPONSE="$(eval_or_exit "curl -sSI $1")"
+	EXIT_CODE=$?
 	if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
 
 	# 200 (specifically non-zero content-length) means script is found
 	CONTENT_LENGTH="$(curl -sI $1 | grep -i content-length | awk -F':' '{print $2}')"
+	EXIT_CODE=$?
 	if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
 
 	if [ "$CONTENT_LENGTH" != "" ] && [ "$CONTENT_LENGTH" != "0" ]; then
