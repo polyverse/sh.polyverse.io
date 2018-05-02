@@ -14,7 +14,10 @@ fix_dpkg_status       apt-based installations may incorrectly mark an identical
 get-package-url       give it an rpm/deb/apk package name and get url from
                       official repo.
 install               Install Polymorphic Linux
+instance-id           Retrieves the instance_id(s) of the current allocated
+                      instance(s).
 list-installed        List installed packages, version and source repo.
+list-installed-elf    List ELF file's package, repo and PV-signature.
 scan-pid              Scan all mapped memory in a PID for a string (e.g. "-PV-").
 scan-pname            Scan all all processes that match parameter 1 and for each
                       of those processes, get list of open .so files and look for

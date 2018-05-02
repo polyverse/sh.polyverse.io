@@ -1,16 +1,18 @@
 #!/bin/sh
 
+SHORT_DESCRIPTION="Retrieves the instance_id(s) of the current allocated instance(s)."
+
 # Defaults
 REPO_FILE="/etc/yum.repos.d/polyverse.repo"
 
 usage() {
 cat >&2 <<-EOF
 
-Retrieves the instance_id of the unique scrambled instance.
+$SHORT_DESCRIPTION
 
 Usage:
 
-  plv instance-id [<options>]
+  curl https://sh.polyverse.io | sh -s instance-id [<options>]
 
 Options:
 
@@ -19,6 +21,7 @@ Options:
 EOF
 }
 
+shift
 while [ $# -gt 0 ]; do
         case "$1" in
                 --help)
