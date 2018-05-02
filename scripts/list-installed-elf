@@ -22,12 +22,27 @@ Options:
 EOF
 }
 
-apk_list() {
-	echo "error: not yet implemented."
-	exit 1
+apt_list() {
+	PKGS="$(apt list --installed 2>/dev/null | tail -n +2 | awk -F/ '{print $1}')"
+	echo "$PKGS" | while read PACKAGE; do
+		POLICY="$(apt-cache policy $PACKAGE)"
+		REPO="$(echo "$POLICY" | awk '/\*\*\*/,/100 /' | grep http | awk '{print $2}' | xargs | sed 's/ /,/g')"
+		FILES="$(dpkg-query -L $PACKAGE)"
+		for FILE in $FILES; do
+                        HEAD="$(head -c 4 $FILE 2>/dev/null | grep "ELF")"
+                        if [ ! -z "$HEAD" ]; then
+                                if [ ! -z "$(strings $FILE | grep "\-PV\-")" ]; then
+                                        SIG="true"
+                                else
+                                        SIG="false"
+                                fi
+                                echo "$PACKAGE $REPO $SIG $FILE"
+                        fi
+		done
+	done
 }
 
-apt_list() {
+apk_list() {
 	echo "error: not yet implemented."
 	exit 1
 }
@@ -38,7 +53,8 @@ yum_list() {
 		CMD="$1"
 	fi
 
-	while read ROW; do
+	ROWS="$($CMD list installed | grep -v ^Loaded | grep -v ^Installed)"
+	echo "$ROWS" | while read ROW; do
 		PKG="$(echo "$ROW" | awk '{print $1}')"
 		REPO="$(echo "$ROW" | awk '{print $3}')"
         	FILES="$(rpm -ql $PKG)"
@@ -53,7 +69,7 @@ yum_list() {
 				echo "$PKG $REPO $SIG $FILE"
 			fi
 		done
-	done <<< "$($CMD list installed | grep -v ^Loaded | grep -v ^Installed)"
+	done
 }
 
 dnf_list() {
@@ -101,15 +117,7 @@ case $PLV_DISTRO in
 		;;
 esac
 
-TEMP_FILE=`mktemp`
-
 eval "$LIST_FUNC"
 EXIT_CODE=$?
-
-PACKAGES_FROM_PV="$(cat $TEMP_FILE | grep polyverse | wc -l)"
-TOTAL_PACKAGES="$(cat $TEMP_FILE | wc -l)"
-
-(>&2 echo "Packages from repo.polyverse.io: $PACKAGES_FROM_PV/$TOTAL_PACKAGES" )
-rm $TEMP_FILE 2>/dev/null || true
 
 exit $EXIT_CODE
