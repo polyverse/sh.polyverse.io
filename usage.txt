@@ -13,6 +13,7 @@ fix_dpkg_status       apt-based installations may incorrectly mark an identical
                       /var/lib/dpkg/status.
 get-package-url       give it an rpm/deb/apk package name and get url from
                       official repo.
+info                  Output basic information about your host.
 install               Install Polymorphic Linux
 instance-id           Retrieves the instance_id(s) of the current allocated
                       instance(s).
