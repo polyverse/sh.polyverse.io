@@ -1,0 +1,11 @@
+#!/bin/sh
+
+DISTRO=$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')
+RELEASE=$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')
+CODENAME=$(cat /etc/*-release 2>/dev/null | grep "^DISTRIB_CODENAME=" | cut -d '=' -f2 | tr -d '"')
+ARCH="$(uname -m)"
+
+echo "Distro: $DISTRO"
+echo "Release: $RELEASE"
+echo "Codename: $CODENAME"
+echo "Arch: $ARCH"
