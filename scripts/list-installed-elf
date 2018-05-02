@@ -1,0 +1,115 @@
+#!/bin/sh
+
+SHORT_DESCRIPTION="List ELF file's package, repo and PV-signature."
+
+#******************************************************************************#
+#                                 functions                                    #
+#******************************************************************************#
+
+usage() {
+cat >&2 <<-EOF
+
+$SHORT_DESCRIPTION
+
+Usage:
+
+  curl https://sh.polyverse.io | sh -s list-installed-elf [<options>]
+
+Options:
+
+  --help                 Display usage.
+
+EOF
+}
+
+apk_list() {
+	echo "error: not yet implemented."
+	exit 1
+}
+
+apt_list() {
+	echo "error: not yet implemented."
+	exit 1
+}
+
+yum_list() {
+	CMD="yum"
+	if [ ! -z "$1" ]; then
+		CMD="$1"
+	fi
+
+	while read ROW; do
+		PKG="$(echo "$ROW" | awk '{print $1}')"
+		REPO="$(echo "$ROW" | awk '{print $3}')"
+        	FILES="$(rpm -ql $PKG)"
+		for FILE in $FILES; do
+			HEAD="$(head -c 4 $FILE 2>/dev/null)"
+			if [ "$HEAD" = $'\x7fELF' ]; then
+				if [ ! -z "$(strings $FILE | grep "\-PV\-")" ]; then
+					SIG="true"
+				else
+					SIG="false"
+				fi
+				echo "$PKG $REPO $SIG $FILE"
+			fi
+		done
+	done <<< "$($CMD list installed | grep -v ^Loaded | grep -v ^Installed)"
+}
+
+dnf_list() {
+	yum_list dnf
+}
+
+#******************************************************************************#
+#                                    main                                      #
+#******************************************************************************#
+
+shift
+while [ $# -gt 0 ]; do
+        case "$1" in
+                --help)
+                        usage
+			exit 1 
+                        ;;
+                *)
+                        echo "Unhandled option '$1'."
+                        exit 1
+        esac
+        shift
+done
+
+PLV_DISTRO=$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')
+PLV_RELEASE=$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')
+PLV_ARCH="$(uname -m)"
+
+case $PLV_DISTRO in
+	alpine)
+		LIST_FUNC="apk_list"
+		;;
+	centos | rhel)
+		LIST_FUNC="yum_list"
+		;;
+	fedora)
+		LIST_FUNC="dnf_list"
+		;;
+	ubuntu)
+		LIST_FUNC="apt_list"
+		;;
+	*)
+		(>&2 echo "Error: unsupported distro [Distro: '$PLV_DISTRO', Release: '$PLV_RELEASE', Arch: '$PLV_ARCH']" )
+		exit 1
+		;;
+esac
+
+TEMP_FILE=`mktemp`
+
+eval "$LIST_FUNC"
+EXIT_CODE=$?
+
+PACKAGES_FROM_PV="$(cat $TEMP_FILE | grep polyverse | wc -l)"
+TOTAL_PACKAGES="$(cat $TEMP_FILE | wc -l)"
+
+(>&2 echo "Packages from repo.polyverse.io: $PACKAGES_FROM_PV/$TOTAL_PACKAGES" )
+rm $TEMP_FILE 2>/dev/null || true
+
+exit $EXIT_CODE
