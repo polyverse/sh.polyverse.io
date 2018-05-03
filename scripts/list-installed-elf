@@ -51,8 +51,8 @@ apk_list() {
 		FILES="$(apk info -L $PACKAGE | grep -v "contains:" | sed '/^\s*$/d')"
                 for FILE in $FILES; do
 			FILE="/$FILE"
-                        HEAD="$(head -c 4 $FILE 2>/dev/null | grep "ELF")"
-                        if [ ! -z "$HEAD" ]; then
+                        HEAD="$(head -c 4 $FILE 2>/dev/null)"
+                        if [ "$HEAD" = $'\x7f\x45\x4c\x46' ]; then
                                 if [ ! -z "$(strings $FILE | grep "\-PV\-")" ]; then
                                         SIG="true"
                                 else    
