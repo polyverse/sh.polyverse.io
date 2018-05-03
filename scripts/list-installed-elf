@@ -43,8 +43,26 @@ apt_list() {
 }
 
 apk_list() {
-	echo "error: not yet implemented."
-	exit 1
+        PACKAGES="$(apk info 2>/dev/null)"
+
+        for PACKAGE in $PACKAGES; do
+                POLICY="$(apk policy $PACKAGE 2>/dev/null | grep lib/apk/db/installed -A 1 -B 1)"
+                REPO="$(echo "$POLICY" | grep lib/apk/db/installed -A 1 -B 1 | head -n 3 | tail -n 1 | grep http | sed -e 's/alpine.*@//g' | xargs)"
+		FILES="$(apk info -L $PACKAGE | grep -v "contains:" | sed '/^\s*$/d')"
+                for FILE in $FILES; do
+			FILE="/$FILE"
+                        HEAD="$(head -c 4 $FILE 2>/dev/null | grep "ELF")"
+                        if [ ! -z "$HEAD" ]; then
+                                if [ ! -z "$(strings $FILE | grep "\-PV\-")" ]; then
+                                        SIG="true"
+                                else    
+                                        SIG="false"
+                                fi
+                                echo "$PACKAGE $REPO $SIG $FILE"
+                        fi
+                done
+        done
+
 }
 
 yum_list() {
