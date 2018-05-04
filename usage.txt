@@ -23,6 +23,7 @@ scan-pname            Scan all all processes that match parameter 1 and for each
                       of those processes, get list of open .so files and look for
                       see the number of times that the string given in parameter
                       2 is found.
+uninstall             Uninstall Polymorphic Linux
 
 For help on a subcommand, run "curl https://sh.polyverse.io | sh -s <subcommand> --help".
 
