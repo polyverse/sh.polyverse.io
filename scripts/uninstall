@@ -77,11 +77,11 @@ rpm_uninstall() {
                 exit 1
         fi
 
-	for x in /etc/yum.repos.d/*.repo.pvbak; do mv "$x" "${x%.pvbak}"; done
-	if [ $? -ne 0 ]; then
-		echo "Encountered an issue moving the *.repo.pvbak files to *.repo. Please perform this manually to complete the uninstall."
-		exit 1
-	fi
+	#for x in /etc/yum.repos.d/*.repo.pvbak; do mv "$x" "${x%.pvbak}"; done
+	#if [ $? -ne 0 ]; then
+	#	echo "Encountered an issue moving the *.repo.pvbak files to *.repo. Please perform this manually to complete the uninstall."
+	#	exit 1
+	#fi
 
         echo "Polyverse's Polymorphic Linux repo file has successfully been uninstalled. All future package installs/updates will come from the previously specified repos."
 }
