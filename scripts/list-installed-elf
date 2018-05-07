@@ -112,36 +112,38 @@ while [ $# -gt 0 ]; do
         shift
 done
 
-PLV_DISTRO=$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')
-PLV_RELEASE=$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')
-PLV_ARCH="$(uname -m)"
+DISTRO=$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')
+RELEASE=$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')
+ARCH="$(uname -m)"
 
-# TO DO: hack since centos 6 doesn't have a proper /etc/os-release file.
-if [ ! -z "$(cat /etc/*-release | grep "CentOS" | grep "6.9")" ]; then
-        PLV_DISTRO=centos
-        PLV_RELEASE=6
-else
-        echo "Could not determine Linux distro. DISTRO='$PLV_DISTRO', RELEASE='$PLV_RELEASE', ARCH='$PLV_ARCH'. Exiting..." >&2
-        exit 1
+if [ -z "$DISTRO" ] || [ -z "$RELEASE" ] || [ -z "$ARCH" ]; then
+        # TO DO: hack since centos 6 doesn't have a proper /etc/os-release file.
+        if [ ! -z "$(cat /etc/*-release | grep "CentOS" | grep "6.9")" ]; then
+                DISTRO=centos
+                RELEASE=6
+        else
+                echo "Could not determine Linux distro. DISTRO='$DISTRO', RELEASE='$RELEASE', ARCH='$ARCH'. Exiting..." >&2
+                exit 1
+        fi
 fi
 
-case $PLV_DISTRO in
-	alpine)
-		LIST_FUNC="apk_list"
-		;;
-	centos | rhel)
-		LIST_FUNC="yum_list"
-		;;
-	fedora)
-		LIST_FUNC="dnf_list"
-		;;
-	ubuntu)
-		LIST_FUNC="apt_list"
-		;;
-	*)
-		(>&2 echo "Error: unsupported distro [Distro: '$PLV_DISTRO', Release: '$PLV_RELEASE', Arch: '$PLV_ARCH']" )
-		exit 1
-		;;
+case $DISTRO in
+        alpine)
+                LIST_FUNC="apk_list"
+                ;;
+        centos | rhel)
+                LIST_FUNC="yum_list"
+                ;;
+        fedora)
+                LIST_FUNC="dnf_list"
+                ;;
+        ubuntu)
+                LIST_FUNC="apt_list"
+                ;;
+        *)
+                (>&2 echo "Error: unsupported distro [Distro: '$DISTRO', Release: '$RELEASE', Arch: '$ARCH']" )
+                exit 1
+                ;;
 esac
 
 eval "$LIST_FUNC"
