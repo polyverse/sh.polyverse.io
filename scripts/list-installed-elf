@@ -79,7 +79,7 @@ yum_list() {
 		for FILE in $FILES; do
 			HEAD="$(head -c 4 $FILE 2>/dev/null)"
 			if [ "$HEAD" = $'\x7fELF' ]; then
-				if [ ! -z "$(strings $FILE | grep "\-PV\-")" ]; then
+				if [ ! -z "$(strings --target=ELF $FILE | grep "\-PV\-")" ]; then
 					SIG="true"
 				else
 					SIG="false"
@@ -145,6 +145,12 @@ case $DISTRO in
                 exit 1
                 ;;
 esac
+
+RESULT="$(strings --version 2>/dev/null)"
+if [ $? -ne 0 ]; then
+	echo "Please install the strings utility. This is usually in the binutils package."
+	exit 1 
+fi
 
 eval "$LIST_FUNC"
 EXIT_CODE=$?
