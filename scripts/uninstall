@@ -110,9 +110,16 @@ DISTRO=$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d 
 RELEASE=$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')
 CODENAME=$(cat /etc/*-release 2>/dev/null | grep "^DISTRIB_CODENAME=" | cut -d '=' -f2 | tr -d '"')
 ARCH="$(uname -m)"
+
 if [ -z "$DISTRO" ] || [ -z "$RELEASE" ] || [ -z "$ARCH" ]; then
-        echo "Could not determine Linux distro. DISTRO='$DISTRO', RELEASE='$RELEASE', ARCH='$ARCH'. Exiting..." >&2
-        exit 1
+	# TO DO: hack since centos 6 doesn't have a proper /etc/os-release file.
+	if [ ! -z "$(cat /etc/*-release | grep "CentOS" | grep "6.9")" ]; then
+		DISTRO=centos
+		RELEASE=6
+	else
+		echo "Could not determine Linux distro. DISTRO='$PLV_DISTRO', RELEASE='$PLV_RELEASE', ARCH='$PLV_ARCH'. Exiting..." >&2
+		exit 1
+	fi
 fi
 
 UNINSTALL_FUNCTION=""
