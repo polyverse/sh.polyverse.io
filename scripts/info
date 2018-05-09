@@ -2,11 +2,26 @@
 
 SHORT_DESCRIPTION="Output basic information about your host."
 
-echo "os:"
-echo "  distro: $(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')"
-echo "  release: $(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')"
-echo "  codename: $(cat /etc/*-release 2>/dev/null | grep "^DISTRIB_CODENAME=" | cut -d '=' -f2 | tr -d '"')"
-echo "  arch: $(uname -m)"
-echo "host:"
-echo "  whoami: $(whoami)"
-echo "  hostname: $HOSTNAME"
+DISTRO="$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')"
+RELEASE="$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')"
+CODENAME="$(cat /etc/*-release 2>/dev/null | grep "^DISTRIB_CODENAME=" | cut -d '=' -f2 | tr -d '"')"
+ARCH="$(uname -m)"
+
+if [ -z "$DISTRO" ]; then
+	if [ ! -z "$(cat /etc/*-release | grep ^CentOS)" ]; then
+		DISTRO="centos"
+		RELEASE="$(cat /etc/*-release | grep ^CentOS | head -n 1 | sed 's/.*release //' | awk '{print $1}')"
+	fi
+fi
+
+echo "os"
+echo "=="
+echo "distro: $DISTRO"
+echo "release: $RELEASE"
+echo "codename: $CODENAME"
+echo "arch: $ARCH"
+echo
+echo "host"
+echo "===="
+echo "whoami: $(whoami)"
+echo "hostname: $HOSTNAME"
