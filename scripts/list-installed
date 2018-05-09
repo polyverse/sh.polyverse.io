@@ -149,7 +149,7 @@ TEMP_FILE=`mktemp`
 eval "$LIST_FUNC"
 EXIT_CODE=$?
 
-PACKAGES_FROM_PV="$(cat $TEMP_FILE | grep polyverse | wc -l)"
+PACKAGES_FROM_PV="$(cat $TEMP_FILE | grep polyverse | grep -v polyverse-mirror | wc -l)"
 TOTAL_PACKAGES="$(cat $TEMP_FILE | wc -l)"
 
 (>&2 echo "Packages from repo.polyverse.io: $PACKAGES_FROM_PV/$TOTAL_PACKAGES" )
