@@ -52,27 +52,28 @@ apt_list() {
 }
 
 yum_list() {
-	LINES="$(yum list installed -q | grep -v ^Installed)"
+	YUM_CMD="yum"
+	if [ "$DISTRO" = "fedora" ]; then
+		YUM_CMD="dnf"
+	fi
+
+	LINES="$($YUM_CMD list installed -q | grep -v ^Installed)"
 
 	# ugly hack due to https://bugzilla.redhat.com/show_bug.cgi?id=584525
-	for LINE in $LINES; do
+	for FIELD in $LINES; do
 		if [ -z $PACKAGE ]; then
-			PACKAGE=$LINE
+			PACKAGE=$FIELD
 			continue
 		fi
 
 		if [ -z $VERSION ]; then
-			VERSION=$LINE
+			VERSION=$FIELD
 			continue
 		fi
 
-		REPO=$LINE
+		REPO=$FIELD
 
-                INFO="$(yum info -v $PACKAGE | sed -e '/^$/,$d')"
-                VERSION="$(echo "$INFO" | grep "^Version" | awk -F: '{print $2}')"; VERSION="$(echo $VERSION)"
-                RELEASE="$(echo "$INFO" | grep "^Release" | awk -F: '{print $2}')"; RELEASE="$(echo $RELEASE)"
-                REPO_SOURCE="$(echo "$INFO" | grep "^From repo" | awk -F: '{print $2}')"; REPO_SOURCE="$(echo $REPO_SOURCE)"
-                echo "$PACKAGE $VERSION-$RELEASE $REPO_SOURCE" | tee -a $TEMP_FILE
+		echo "$PACKAGE $VERSION $REPO" | tee -a $TEMP_FILE
 
 		PACKAGE=""
 		VERSION=""
@@ -81,15 +82,7 @@ yum_list() {
 }
 
 dnf_list() {
-        INSTALLED="$(dnf list installed | sed -n '/^Installed Packages/,$p' | tail -n +2 | awk '{print $1}')"
-
-        for PACKAGE in $INSTALLED; do
-                INFO="$(dnf info -v $PACKAGE | sed -e '/^$/,$d')"
-                VERSION="$(echo "$INFO" | grep "^Version" | awk -F: '{print $2}')"; VERSION="$(echo $VERSION)"
-                RELEASE="$(echo "$INFO" | grep "^Release" | awk -F: '{print $2}')"; RELEASE="$(echo $RELEASE)"
-                REPO_SOURCE="$(echo "$INFO" | grep "^From repo" | awk -F: '{print $2}')"; REPO_SOURCE="$(echo $REPO_SOURCE)"
-                echo "$PACKAGE $VERSION-$RELEASE $REPO_SOURCE" | tee -a $TEMP_FILE
-        done
+	yum_list
 }
 
 #******************************************************************************#
@@ -110,19 +103,15 @@ while [ $# -gt 0 ]; do
         shift
 done
 
-DISTRO=$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')
-RELEASE=$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')
-ARCH="$(uname -m)"
+INFO="$(curl -s https://sh.polyverse.io | sh -s info)"
+
+DISTRO="$(echo "$INFO" | grep ^distro: | awk '{print $2}')"
+RELEASE="$(echo "$INFO" | grep ^release: | awk '{print $2}')"
+ARCH="$(echo "$INFO" | grep ^arch: | awk '{print $2}')"
 
 if [ -z "$DISTRO" ] || [ -z "$RELEASE" ] || [ -z "$ARCH" ]; then
-	# TO DO: hack since centos 6 doesn't have a proper /etc/os-release file.
-	if [ ! -z "$(cat /etc/*-release | grep "CentOS" | grep "6.9")" ]; then 
-		DISTRO=centos
-		RELEASE=6
-	else 
-		echo "Could not determine Linux distro. DISTRO='$DISTRO', RELEASE='$RELEASE', ARCH='$ARCH'. Exiting..." >&2
-		exit 1
-	fi
+	(>&2 echo "Could not determine Linux distro. DISTRO='$DISTRO', RELEASE='$RELEASE', ARCH='$ARCH'. Exiting...")
+	exit 1
 fi
 
 case $DISTRO in
