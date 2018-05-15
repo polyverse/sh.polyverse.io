@@ -18,8 +18,14 @@ for SCAN_PATH in $SCAN_PATHS; do
                 fi
 
 		# Test whether file is readable (file cmd below doesn't detect/flag this as an werror)
-		if [[ ! -r ${SCAN_PATH}/$TARGET ]]; then
+		if [ ! -r ${SCAN_PATH}/$TARGET ]; then
 			echo "${TARGET}: Read permission denied"
+			continue;
+		fi
+
+		# Test whether file is an ELF file by examining first 4 bytes
+		od -x ${SCAN_PATH}/${TARGET} | head -1 | grep '0000000 457f 464c' > /dev/null
+		if [ $? != 0 ]; then
 			continue;
 		fi
 
