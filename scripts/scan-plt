@@ -1,0 +1,46 @@
+#!/bin/sh
+  
+if [ "$1" = "" ]; then
+        SCAN_PATHS="$PWD"
+else
+        SCAN_PATHS="$@"
+fi
+
+BASE=$(basename ${0})
+WORKFILE=$(mktemp -p /tmp/ ${BASE}-XXXXXX)
+
+for SCAN_PATH in $SCAN_PATHS; do
+        echo "Scanning $SCAN_PATH..."
+        find "$SCAN_PATH" \! -type d -print | while read line; do
+                TARGET="$(echo $line | sed 's|'$SCAN_PATH'/||g')"
+                if [ "$SCAN_PATH" = "$TARGET" ]; then
+                        continue
+                fi
+
+		# Test whether file is readable (file cmd below doesn't detect/flag this as an werror)
+		if [[ ! -r ${SCAN_PATH}/$TARGET ]]; then
+			echo "${TARGET}: Read permission denied"
+			continue;
+		fi
+
+#		file ${SCAN_PATH}/${TARGET} | grep "^${SCAN_PATH}/${TARGET}: ELF" > /dev/null
+#		if [ "$?" != "0" ]; then
+#			echo "DEBUG: Skipping non elf ${TARGET}"
+#			continue;	# Skip non-elf file
+#		fi
+
+		objdump -j .plt -d ${SCAN_PATH}/${TARGET} \
+		  | grep '^0000' \
+		  | sed -e 's/^[0-9a-f]* <//' -e 's/>:$//' -e 's/@plt//' \
+		  | grep -v '\*ABS\*' > ${WORKFILE}
+		if [ "$?" != "0" ]; then
+			echo "DEBUG: Skipping failed objdump for file ${TARGET}"
+			continue;	# Skip non-elf file
+		fi
+		fingerprint=$( wc -l ${WORKFILE} | awk '{print $1}' && head -3 ${WORKFILE} && tail -3 ${WORKFILE} )
+
+		echo ${SCAN_PATH}/${TARGET}: $fingerprint
+        done
+done
+
+rm ${WORKFILE}
