@@ -23,18 +23,11 @@ for SCAN_PATH in $SCAN_PATHS; do
 			continue;
 		fi
 
-#		file ${SCAN_PATH}/${TARGET} | grep "^${SCAN_PATH}/${TARGET}: ELF" > /dev/null
-#		if [ "$?" != "0" ]; then
-#			echo "DEBUG: Skipping non elf ${TARGET}"
-#			continue;	# Skip non-elf file
-#		fi
-
 		objdump -j .plt -d ${SCAN_PATH}/${TARGET} \
 		  | grep '^0000' \
 		  | sed -e 's/^[0-9a-f]* <//' -e 's/>:$//' -e 's/@plt//' \
 		  | grep -v '\*ABS\*' > ${WORKFILE}
 		if [ "$?" != "0" ]; then
-			echo "DEBUG: Skipping failed objdump for file ${TARGET}"
 			continue;	# Skip non-elf file
 		fi
 		fingerprint=$( wc -l ${WORKFILE} | awk '{print $1}' && head -3 ${WORKFILE} && tail -3 ${WORKFILE} )
