@@ -1,4 +1,9 @@
 #!/bin/sh
+
+if [ "$1" == '-v' ]; then
+	VERBOSE=1
+	shift;
+fi
   
 if [ "$1" = "" ]; then
         SCAN_PATHS="$PWD"
@@ -10,40 +15,47 @@ BASE=$(basename ${0})
 WORKFILE=$(mktemp -p /tmp/ ${BASE}-XXXXXX)
 
 for SCAN_PATH in $SCAN_PATHS; do
+	# Trim any trailing '/' from path
+	SCAN_PATH=$( echo ${SCAN_PATH} | sed 's/\/$//' )
         echo "Scanning $SCAN_PATH..."
-        find "$SCAN_PATH" \! -type d -print | while read line; do
-		# Trim any trailing '/' from path
-		SCAN_PATH=$( echo ${SCAN_PATH} | sed 's/\/$//' )
+        find ${SCAN_PATH} -xtype f -print | while read line; do
 
                 TARGET="$(echo $line | sed 's|'$SCAN_PATH'/||g')"
                 if [ "$SCAN_PATH" = "$TARGET" ]; then
                         continue
                 fi
+		FNAME="${SCAN_PATH}/${TARGET}"
+
+		# Exclude files named *.so.debug: They are ELF files but don't actually contain any code
+		echo ${TARGET} | grep '\.debug$' > /dev/null
+		if [ $? == 0 ]; then
+			continue
+		fi
 
 		# Test whether file is readable (file cmd below doesn't detect/flag this as an werror)
-		if [ ! -r ${SCAN_PATH}/$TARGET ]; then
-			echo "${TARGET}: Read permission denied"
+		if [ ! -r "${FNAME}" ]; then
+			printf '%-32s %s\n'  "ERR-PERM-DENIED" "${FNAME}";
 			continue;
 		fi
 
 		# Test whether file is an ELF file by examining first 4 bytes
-		od -x ${SCAN_PATH}/${TARGET} | head -1 | grep '0000000 457f 464c' > /dev/null
+		od -x "${SCAN_PATH}/${TARGET}" | head -1 | grep '0000000 457f 464c' > /dev/null
 		if [ $? != 0 ]; then
-			echo "${TARGET}: Skipping non-ELF file"
 			continue;
 		fi
 
-		objdump -j .plt -d ${SCAN_PATH}/${TARGET} \
+		objdump -j .plt -d "${SCAN_PATH}/${TARGET}" 2> ${WORKFILE}.stderr \
 		  | grep '^0000' \
 		  | sed -e 's/^[0-9a-f]* <//' -e 's/>:$//' -e 's/@plt//' \
-		  | grep -v '\*ABS\*' > ${WORKFILE}
+		  | grep -v '\*ABS\*' > ${WORKFILE} 2> ${WORKFILE}.stderr
 		if [ "$?" != "0" ]; then
+			printf '%-32s %s\n' "ERR-OBJDUMP" "${FNAME}";
 			continue;	# Skip non-elf file
 		fi
 		fingerprint=$( wc -l ${WORKFILE} | awk '{print $1}' && head -3 ${WORKFILE} && tail -3 ${WORKFILE} )
-
-		echo ${SCAN_PATH}/${TARGET}: $fingerprint
+		MD5=$(echo $fingerprint | md5sum | awk '{print $1}')
+		printf '%32s %s\n' ${MD5} "${FNAME}";
         done
 done
 
-rm ${WORKFILE}
+rm ${WORKFILE} ${WORKFILE}.stderr
