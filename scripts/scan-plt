@@ -12,6 +12,9 @@ WORKFILE=$(mktemp -p /tmp/ ${BASE}-XXXXXX)
 for SCAN_PATH in $SCAN_PATHS; do
         echo "Scanning $SCAN_PATH..."
         find "$SCAN_PATH" \! -type d -print | while read line; do
+		# Trim any trailing '/' from path
+		SCAN_PATH=$( echo ${SCAN_PATH} | sed 's/\/$//' )
+
                 TARGET="$(echo $line | sed 's|'$SCAN_PATH'/||g')"
                 if [ "$SCAN_PATH" = "$TARGET" ]; then
                         continue
@@ -26,6 +29,7 @@ for SCAN_PATH in $SCAN_PATHS; do
 		# Test whether file is an ELF file by examining first 4 bytes
 		od -x ${SCAN_PATH}/${TARGET} | head -1 | grep '0000000 457f 464c' > /dev/null
 		if [ $? != 0 ]; then
+			echo "${TARGET}: Skipping non-ELF file"
 			continue;
 		fi
 
