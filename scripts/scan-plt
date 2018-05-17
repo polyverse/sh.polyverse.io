@@ -52,7 +52,7 @@ for SCAN_PATH in $SCAN_PATHS; do
 			printf '%-32s %s\n' "ERR-OBJDUMP" "${FNAME}";
 			continue;	# Skip non-elf file
 		fi
-		fingerprint=$( wc -l ${WORKFILE} | awk '{print $1}' && head -3 ${WORKFILE} && tail -3 ${WORKFILE} )
+		fingerprint=$( head -3 ${WORKFILE} && tail -3 ${WORKFILE} )
 		MD5=$(echo $fingerprint | md5sum | awk '{print $1}')
 		printf '%32s %s\n' ${MD5} "${FNAME}";
         done
