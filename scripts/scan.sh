@@ -1,4 +1,7 @@
 #!/bin/sh
+
+# Drop the 'scan.sh/' initial arg
+shift
   
 if [ "$1" = "" ]; then
         SCAN_PATHS="$PWD"
