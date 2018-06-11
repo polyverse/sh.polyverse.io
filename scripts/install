@@ -244,6 +244,10 @@ if [ -z "$DISTRO" ] || [ -z "$RELEASE" ] || [ -z "$ARCH" ]; then
 	if [ ! -z "$(cat /etc/*-release | grep "CentOS" | grep "6.9")" ]; then
 		DISTRO=centos
 		RELEASE=6
+	elif [ ! -z "$(cat /etc/*-release | grep "Red Hat Enterprise" | grep "6.4")" ]; then
+		DISTRO=rhel
+		RELEASE=6
+
 	else
 		echo "Could not determine Linux distro. DISTRO='$DISTRO', RELEASE='$RELEASE', ARCH='$ARCH'. Exiting..." >&2
  		exit 1
