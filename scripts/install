@@ -246,7 +246,7 @@ if [ -z "$DISTRO" ] || [ -z "$RELEASE" ] || [ -z "$ARCH" ]; then
 		RELEASE=6
 	elif [ ! -z "$(cat /etc/*-release | grep "Red Hat Enterprise" | grep "6.4")" ]; then
 		DISTRO=rhel
-		RELEASE=6
+		RELEASE=6.4
 
 	else
 		echo "Could not determine Linux distro. DISTRO='$DISTRO', RELEASE='$RELEASE', ARCH='$ARCH'. Exiting..." >&2
