@@ -112,15 +112,20 @@ while [ $# -gt 0 ]; do
         shift
 done
 
-DISTRO=$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')
-RELEASE=$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')
+# make sure we're able to retrieve the distro release id (e.g., alpine, centos, ubuntu) and version id.
+DISTRO="$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')"
+RELEASE="$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')"
+CODENAME="$(cat /etc/*-release 2>/dev/null | grep "^DISTRIB_CODENAME=" | cut -d '=' -f2 | tr -d '"')"
 ARCH="$(uname -m)"
 
+# Try to get PFRAC components from older meta-data in /etc (for CentOS and RHEL)
 if [ -z "$DISTRO" ] || [ -z "$RELEASE" ] || [ -z "$ARCH" ]; then
-        # TO DO: hack since centos 6 doesn't have a proper /etc/os-release file.
-        if [ ! -z "$(cat /etc/*-release | grep "CentOS" | grep "6.9")" ]; then
-                DISTRO=centos
-                RELEASE=6
+        if [ ! -z "$(cat /etc/*-release | grep ^CentOS)" ]; then
+                DISTRO="centos"
+                RELEASE="$(cat /etc/*-release | grep ^CentOS | head -n 1 | sed 's/.*release //' | awk '{print $1}')"
+        elif [ ! -z "$(cat /etc/*-release | grep ^Red)" ]; then
+                DISTRO=rhel
+                RELEASE="$(cat /etc/*-release | grep ^Red | head -n 1 | sed 's/.*release //' | awk '{print $1}')"
         else
                 echo "Could not determine Linux distro. DISTRO='$DISTRO', RELEASE='$RELEASE', ARCH='$ARCH'. Exiting..." >&2
                 exit 1
