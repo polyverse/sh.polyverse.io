@@ -2,6 +2,8 @@
 
 SHORT_DESCRIPTION="List installed packages, version and source repo."
 
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
+
 #******************************************************************************#
 #                                 functions                                    #
 #******************************************************************************#
@@ -103,7 +105,7 @@ while [ $# -gt 0 ]; do
         shift
 done
 
-INFO="$(curl -s https://sh.polyverse.io | sh -s info)"
+INFO="$(curl -sS $PV_BASE_URL | sh -s info)"
 
 DISTRO="$(echo "$INFO" | grep ^distro: | awk '{print $2}')"
 RELEASE="$(echo "$INFO" | grep ^release: | awk '{print $2}')"
