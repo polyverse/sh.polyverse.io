@@ -245,6 +245,9 @@ if [ -z "$DISTRO" ] || [ -z "$RELEASE" ] || [ -z "$ARCH" ]; then
         if [ ! -z "$(cat /etc/*-release | grep ^CentOS)" ]; then
                 DISTRO="centos"
                 RELEASE="$(cat /etc/*-release | grep ^CentOS | head -n 1 | sed 's/.*release //' | awk '{print $1}')"
+		if [ "$RELEASE" == "6.9" ] || [ "$RELEASE" == "6.10" ]]; then
+			RELEASE="6"
+		fi
         elif [ ! -z "$(cat /etc/*-release | grep ^Red)" ]; then
                 DISTRO=rhel
                 RELEASE="$(cat /etc/*-release | grep ^Red | head -n 1 | sed 's/.*release //' | awk '{print $1}')"
