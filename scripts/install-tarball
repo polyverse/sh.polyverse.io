@@ -1,0 +1,181 @@
+#!/bin/sh
+
+SHORT_DESCRIPTION="Download/install Polymorphic tarball"
+
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
+
+#******************************************************************************#
+#                                 functions                                    #
+#******************************************************************************#
+
+usage() {
+cat >&2 <<-EOF
+Downloads and extracts a Polymorphic tarball.
+
+usage: curl https://sh.polyverse.io | sh -s install-tarball --authkey <authkey> --filename <filename> --destination </path/to/folder> [<options>]
+
+required:
+
+   --authkey <authkey>
+   --filename <filename>
+   --destination </path/to/folder>
+
+options:
+
+   [--nodeid <nodeid>]
+   [--download-only]
+   [--help]                                            Display usage.
+
+EOF
+}
+
+function stderr() {
+	if [ -z "$1" ]; then
+		return
+	fi
+
+	(>&2 echo "$1")
+}
+
+# evals $1 and, if true, echos $2 to stderr and exits
+function exitif() {
+	_RESULT=$(eval "if [[ "$1" ]]; then echo true; fi")
+
+	if [ "$_RESULT" == "true" ]; then
+		stderr "$2"
+		exit 1
+	fi
+}
+
+function downloadScrambledJDK() {
+        NODEID="$1"
+        TARGET_LOCATION="$2"
+}
+
+function installPolymorphicArcSight() {
+        JRE_LOCATION="$1"
+
+        echo "wget tarball"
+        echo "confirm existence of tarball."
+
+        echo "service stop"
+        echo "mv $1 $1.old"
+        echo "mkdir $1.pv"
+        echo "tar -xvf java.tar.gz $1.pv"
+        echo "ln $1 $1.pv"
+        echo "service start"
+}
+
+#******************************************************************************#
+#                                    main                                      #
+#******************************************************************************#
+
+exitif "\"$1\" != \"install-tarball\"" "error: unexpected argument '$1'."
+
+# due to the way sh.polyverse.io works, $1 is used to determine which script to run
+# but for the script itself, we want to get rid of the first argument
+shift
+
+if [ $# -eq 0 ]; then
+	usage
+	exit 1
+fi
+
+# initialization
+AUTHKEY=""
+FILENAME=""
+DESTINATION=""
+NODEID=""
+DOWNLOADONLY=""
+
+# enumerate all the command-line arguments and set variables accordingly
+while (( $# )) ; do
+	case $1 in
+		--authkey)
+			shift
+			AUTHKEY="$1"
+			;;
+		--filename)
+			shift
+			FILENAME="$1"
+			;;
+		--destination)
+			shift
+			DESTINATION="$1"
+			;;
+		--nodeid)
+			shift
+			NODEID="$1"
+			;;
+		--downloadonly)
+			DOWNLOADONLY="true"
+			;;
+		--help)
+			usage
+			exit 1
+			;;
+		*)
+			_echo "ERROR: Unhandled argument '$1'."
+			exit 1
+	esac
+	shift
+done
+
+# check to make sure all required arguments have been specified
+exitif "-z \"$AUTHKEY\"" "Error: --authkey argument is required."
+exitif "-z \"$FILENAME\"" "Error: --filename argument is required."
+exitif "-z \"$DESTINATION\"" "Error: --destination argument is required."
+
+# additional checks
+exitif "! -f /usr/bin/curl" "Error: This script requires curl. Please install it and try running this again."
+
+# get the tarball
+TARBALL_LOCATION=""
+if [ -f $FILENAME ]; then
+	stderr "info: tarball '$FILENAME' found on disk."
+	TARBALL_LOCATION="$FILENAME"
+else
+	# in order to download the tarball alongside the destination folder
+	# we need to remove the actual destination folder from the path
+	TARBALL_LOCATION="${DESTINATION%/*}"
+
+	# let's make sure that after calculating the tarball location, that the location actually exists
+	exitif "! -d $TARBALL_LOCATION" "error: folder '$TARBALL_LOCATION' doesn't exist."
+
+	# calculate the tarball download path and filename
+	TARBALL_LOCATION="$TARBALL_LOCATION/$FILENAME"
+
+	stderr "info: retrieving file '$FILENAME' to '$TARBALL_LOCATION' from repo.polyverse.io..."
+
+	CMD="wget --server-response -O $TARBALL_LOCATION \"https://repo.polyverse.io/files/scrambled?filename=$FILENAME&nodeID=$NODEID&authKey=$AUTHKEY\""
+	stderr "+ $CMD"
+	#RESULT="$(eval "$CMD" 2>&1 | awk '/^  HTTP/{print $2}')"
+	RESULT="$(eval "$CMD" 2>&1)"
+	echo "--> result:"
+	echo "$RESULT"
+
+	HTTP_STATUS_CODE="$(echo "$RESULT" | awk '/^  HTTP/{print $2}' | tail -1)"
+
+	echo "HTTP_STATUS_CODE: $HTTP_STATUS_CODE"
+
+	exitif "$HTTP_STATUS_CODE -ne 200" "Error: wget returned http status code '$HTTP_STATUS_CODE'."
+fi
+
+stderr "debug: TARBALL_LOCATION = '$TARBALL_LOCATION'"
+
+exitif "! -f $TARBALL_LOCATION" "Error: can't find expected tarball '$TARBALL_LOCATION'."
+
+CMD="stat --format=%F $DESTINATION"
+stderr "+ $CMD"
+RESULT="$(eval "$CMD" 2>&1)"
+echo "RESULT: $RESULT"
+
+if [ "$RESULT" == "directory" ]; then
+	echo "debug: need to move this to $DESTINATION.old."
+	mv $DESTINATION $DESTINATION.old
+fi
+
+mkdir -p ${DESTINATION}.pv
+tar xvf $FILENAME -C ${DESTINATION}.pv
+
+ln -sf $DESTINATION.pv $DESTINATION
