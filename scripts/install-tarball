@@ -29,48 +29,50 @@ options:
 EOF
 }
 
-function stderr() {
-	if [ -z "$1" ]; then
-		return
-	fi
-
-	(>&2 echo "$1")
-}
-
 # evals $1 and, if true, echos $2 to stderr and exits
 function exitif() {
-	_RESULT=$(eval "if [[ "$1" ]]; then echo true; fi")
+	eval "if [[ "$1" ]]; then (>&2 echo "$2"); exit 1; fi"
+}
 
-	if [ "$_RESULT" == "true" ]; then
-		stderr "$2"
-		exit 1
+function echoeval() {
+	(>&2 echo "+ $1")
+	eval "$1"
+}
+
+# $1 = filename, $2 = target/destination
+function downloadScrambledTarball() {
+	_FILENAME="$1"
+	_DESTINATION="$2"
+
+        CMD="wget --no-verbose --server-response -O $_DESTINATION/$_FILENAME \"https://repo.polyverse.io/files/scrambled?filename=$_FILENAME&nodeID=$NODEID&authKey=$AUTHKEY\""
+	(>&2 echo "+ $CMD")
+        _RESULT="$(eval "$CMD" 2>&1)"
+	_EXIT_CODE=$?
+
+	if [ $_EXIT_CODE -ne 0 ]; then
+		(>&2 echo "Error: wget returned exit code '$_EXIT_CODE' with result '$_RESULT'.")
+		return 1
 	fi
-}
 
-function downloadScrambledJDK() {
-        NODEID="$1"
-        TARGET_LOCATION="$2"
-}
+        _HTTP_STATUS_CODE="$(echo "$_RESULT" | awk '/^  HTTP/{print $2}' | tail -1)"
+	if [ -z "$_HTTP_STATUS_CODE" ]; then
+		(>&2 echo "Error: unable to determine HTTP status code.")
+		return 1
+	fi
 
-function installPolymorphicArcSight() {
-        JRE_LOCATION="$1"
+	if [ $_HTTP_STATUS_CODE -ne 200 ]; then
+		(>&2 echo "Error: wget returned http status code '$HTTP_STATUS_CODE' with result '$_RESULT'.")
+		return 1
+	fi
 
-        echo "wget tarball"
-        echo "confirm existence of tarball."
-
-        echo "service stop"
-        echo "mv $1 $1.old"
-        echo "mkdir $1.pv"
-        echo "tar -xvf java.tar.gz $1.pv"
-        echo "ln $1 $1.pv"
-        echo "service start"
+	return 0
 }
 
 #******************************************************************************#
 #                                    main                                      #
 #******************************************************************************#
 
-exitif "\"$1\" != \"install-tarball\"" "error: unexpected argument '$1'."
+exitif "\"$1\" != \"install-tarball\"" "Error: unexpected argument \'$1\'\; expecting \'install-tarball\'."
 
 # due to the way sh.polyverse.io works, $1 is used to determine which script to run
 # but for the script itself, we want to get rid of the first argument
@@ -85,7 +87,7 @@ fi
 AUTHKEY=""
 FILENAME=""
 DESTINATION=""
-NODEID=""
+NODEID="$HOSTNAME"
 DOWNLOADONLY=""
 
 # enumerate all the command-line arguments and set variables accordingly
@@ -107,7 +109,7 @@ while (( $# )) ; do
 			shift
 			NODEID="$1"
 			;;
-		--downloadonly)
+		--download-only)
 			DOWNLOADONLY="true"
 			;;
 		--help)
@@ -127,55 +129,74 @@ exitif "-z \"$FILENAME\"" "Error: --filename argument is required."
 exitif "-z \"$DESTINATION\"" "Error: --destination argument is required."
 
 # additional checks
-exitif "! -f /usr/bin/curl" "Error: This script requires curl. Please install it and try running this again."
+exitif "! -f /usr/bin/wget" "Error: This script requires wget. Please install it and try running this again."
 
-# get the tarball
-TARBALL_LOCATION=""
-if [ -f $FILENAME ]; then
-	stderr "info: tarball '$FILENAME' found on disk."
-	TARBALL_LOCATION="$FILENAME"
+if [ ! -z "$DOWNLOADONLY" ]; then
+	mkdir -p $DESTINATION >/dev/null 2>&1
+	downloadScrambledTarball "$FILENAME" "$DESTINATION"
+	exit $?
+fi
+
+echo "Checking destination '$DESTINATION'..."
+if [ -d "$DESTINATION" ]; then
+	DESTINATION_TYPE="$(stat --format=%F $DESTINATION)"
+	echo "=> Destination exists. (type: $DESTINATION_TYPE)"
+	case "$DESTINATION_TYPE" in
+		"symbolic link")
+			if [ ! -d "${DESTINATION}.pv" ]; then
+				echo "Error: destination '$DESTINATION' is a symlink, but folder '${DESTINATION}.pv' doesn\'t exist. This is unexpected."
+				exit 1
+			fi
+			echo "=> Found folder '${DESTINATION}.pv'. Looks like a re-install."
+			#if [ -f "$DESTINATION/$FILENAME" ]; then
+			#	echo "=> Detected '$FILENAME' in destination. This seems to be a re-install. Using that file..."
+			#	FILENAME="$DESTINATION/$FILENAME"
+			#fi
+			;;
+		"directory")
+			if [ -d "${DESTINTION}.old" ]; then
+				echo "Error: destination '$DESTINATION' is not a symlink, but folder '${DESTINTION}.old' already exists. This is unexpected."
+				exit 1
+			fi
+			echo "=> Creating symlink structure to make rollback simple..."
+			echoeval "mv $DESTINATION ${DESTINATION}.old"
+			echoeval "mkdir -p ${DESTINATION}.pv"
+			echoeval "ln -sf ${DESTINATION}.pv ${DESTINATION}"
+			;;
+		*)
+			echo "=> Error: destination '$DESTINATION' has an unexpected type '$DESTINATION_TYPE'."
+			exit 1
+			;;
+	esac
 else
-	# in order to download the tarball alongside the destination folder
-	# we need to remove the actual destination folder from the path
-	TARBALL_LOCATION="${DESTINATION%/*}"
-
-	# let's make sure that after calculating the tarball location, that the location actually exists
-	exitif "! -d $TARBALL_LOCATION" "error: folder '$TARBALL_LOCATION' doesn't exist."
-
-	# calculate the tarball download path and filename
-	TARBALL_LOCATION="$TARBALL_LOCATION/$FILENAME"
-
-	stderr "info: retrieving file '$FILENAME' to '$TARBALL_LOCATION' from repo.polyverse.io..."
-
-	CMD="wget --server-response -O $TARBALL_LOCATION \"https://repo.polyverse.io/files/scrambled?filename=$FILENAME&nodeID=$NODEID&authKey=$AUTHKEY\""
-	stderr "+ $CMD"
-	#RESULT="$(eval "$CMD" 2>&1 | awk '/^  HTTP/{print $2}')"
-	RESULT="$(eval "$CMD" 2>&1)"
-	echo "--> result:"
-	echo "$RESULT"
-
-	HTTP_STATUS_CODE="$(echo "$RESULT" | awk '/^  HTTP/{print $2}' | tail -1)"
-
-	echo "HTTP_STATUS_CODE: $HTTP_STATUS_CODE"
-
-	exitif "$HTTP_STATUS_CODE -ne 200" "Error: wget returned http status code '$HTTP_STATUS_CODE'."
+	echo "=> Destination doesn't exist. Creating symlink structure now..."
+	echoeval "mkdir -p ${DESTINATION}.pv"
+	echoeval "ln -sf ${DESTINATION}.pv ${DESTINATION}"
 fi
 
-stderr "debug: TARBALL_LOCATION = '$TARBALL_LOCATION'"
+echo "Checking for file '$FILENAME'..."
+if [ -f $FILENAME ]; then
+	echo "=> File found."
+	FILENAME="$(readlink -e $FILENAME)"
+	exitif "$? -ne 0" "Error: readlink call returned non-zero; maybe it\'s not installed?"
+else
+	echo "=> File not found."
 
-exitif "! -f $TARBALL_LOCATION" "Error: can't find expected tarball '$TARBALL_LOCATION'."
+	echo "Downloading '$FILENAME' to '$DESTINATION' from repo.polyverse.io..."
+	downloadScrambledTarball "$FILENAME" "$DESTINATION"
+	exitif "$? -ne 0" "Error: downloadScrambledTarball failed."
 
-CMD="stat --format=%F $DESTINATION"
-stderr "+ $CMD"
-RESULT="$(eval "$CMD" 2>&1)"
-echo "RESULT: $RESULT"
-
-if [ "$RESULT" == "directory" ]; then
-	echo "debug: need to move this to $DESTINATION.old."
-	mv $DESTINATION $DESTINATION.old
+	FILENAME="$DESTINATION/$FILENAME"
 fi
 
-mkdir -p ${DESTINATION}.pv
-tar xvf $FILENAME -C ${DESTINATION}.pv
+if [ -f "$FILENAME" ] && [ ! -s "$FILENAME" ]; then
+	echo "Error: tarball '$FILENAME' does not exist, or is empty."
+	exit 1
+fi
 
-ln -sf $DESTINATION.pv $DESTINATION
+echo "File tarball '$FILENAME' will be extracted to '$DESTINATION'."
+
+echoeval "tar xvf $FILENAME -C ${DESTINATION}.pv >/dev/null 2>&1"
+
+echo "Finished."
+
