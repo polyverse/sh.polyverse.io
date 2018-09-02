@@ -1,0 +1,202 @@
+#!/bin/sh
+
+SHORT_DESCRIPTION="Download/install Polymorphic tarball"
+
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
+
+#******************************************************************************#
+#                                 functions                                    #
+#******************************************************************************#
+
+usage() {
+cat >&2 <<-EOF
+Downloads and extracts a Polymorphic tarball.
+
+usage: curl https://sh.polyverse.io | sh -s install-tarball --authkey <authkey> --filename <filename> --destination </path/to/folder> [<options>]
+
+required:
+
+   --authkey <authkey>
+   --filename <filename>
+   --destination </path/to/folder>
+
+options:
+
+   [--nodeid <nodeid>]
+   [--download-only]
+   [--help]                                            Display usage.
+
+EOF
+}
+
+# evals $1 and, if true, echos $2 to stderr and exits
+function exitif() {
+	eval "if [[ "$1" ]]; then (>&2 echo "$2"); exit 1; fi"
+}
+
+function echoeval() {
+	(>&2 echo "+ $1")
+	eval "$1"
+}
+
+# $1 = filename, $2 = target/destination
+function downloadScrambledTarball() {
+	_FILENAME="$1"
+	_DESTINATION="$2"
+
+        CMD="wget --no-verbose --server-response -O $_DESTINATION/$_FILENAME \"https://repo.polyverse.io/files/scrambled?filename=$_FILENAME&nodeID=$NODEID&authKey=$AUTHKEY\""
+	(>&2 echo "+ $CMD")
+        _RESULT="$(eval "$CMD" 2>&1)"
+	_EXIT_CODE=$?
+
+	if [ $_EXIT_CODE -ne 0 ]; then
+		(>&2 echo "Error: wget returned exit code '$_EXIT_CODE' with result '$_RESULT'.")
+		return 1
+	fi
+
+        _HTTP_STATUS_CODE="$(echo "$_RESULT" | awk '/^  HTTP/{print $2}' | tail -1)"
+	if [ -z "$_HTTP_STATUS_CODE" ]; then
+		(>&2 echo "Error: unable to determine HTTP status code.")
+		return 1
+	fi
+
+	if [ $_HTTP_STATUS_CODE -ne 200 ]; then
+		(>&2 echo "Error: wget returned http status code '$HTTP_STATUS_CODE' with result '$_RESULT'.")
+		return 1
+	fi
+
+	return 0
+}
+
+#******************************************************************************#
+#                                    main                                      #
+#******************************************************************************#
+
+exitif "\"$1\" != \"install-tarball\"" "Error: unexpected argument \'$1\'\; expecting \'install-tarball\'."
+
+# due to the way sh.polyverse.io works, $1 is used to determine which script to run
+# but for the script itself, we want to get rid of the first argument
+shift
+
+if [ $# -eq 0 ]; then
+	usage
+	exit 1
+fi
+
+# initialization
+AUTHKEY=""
+FILENAME=""
+DESTINATION=""
+NODEID="$HOSTNAME"
+DOWNLOADONLY=""
+
+# enumerate all the command-line arguments and set variables accordingly
+while (( $# )) ; do
+	case $1 in
+		--authkey)
+			shift
+			AUTHKEY="$1"
+			;;
+		--filename)
+			shift
+			FILENAME="$1"
+			;;
+		--destination)
+			shift
+			DESTINATION="$1"
+			;;
+		--nodeid)
+			shift
+			NODEID="$1"
+			;;
+		--download-only)
+			DOWNLOADONLY="true"
+			;;
+		--help)
+			usage
+			exit 1
+			;;
+		*)
+			_echo "ERROR: Unhandled argument '$1'."
+			exit 1
+	esac
+	shift
+done
+
+# check to make sure all required arguments have been specified
+exitif "-z \"$AUTHKEY\"" "Error: --authkey argument is required."
+exitif "-z \"$FILENAME\"" "Error: --filename argument is required."
+exitif "-z \"$DESTINATION\"" "Error: --destination argument is required."
+
+# additional checks
+exitif "! -f /usr/bin/wget" "Error: This script requires wget. Please install it and try running this again."
+
+if [ ! -z "$DOWNLOADONLY" ]; then
+	mkdir -p $DESTINATION >/dev/null 2>&1
+	downloadScrambledTarball "$FILENAME" "$DESTINATION"
+	exit $?
+fi
+
+echo "Checking destination '$DESTINATION'..."
+if [ -d "$DESTINATION" ]; then
+	DESTINATION_TYPE="$(stat --format=%F $DESTINATION)"
+	echo "=> Destination exists. (type: $DESTINATION_TYPE)"
+	case "$DESTINATION_TYPE" in
+		"symbolic link")
+			if [ ! -d "${DESTINATION}.pv" ]; then
+				echo "Error: destination '$DESTINATION' is a symlink, but folder '${DESTINATION}.pv' doesn\'t exist. This is unexpected."
+				exit 1
+			fi
+			echo "=> Found folder '${DESTINATION}.pv'. Looks like a re-install."
+			#if [ -f "$DESTINATION/$FILENAME" ]; then
+			#	echo "=> Detected '$FILENAME' in destination. This seems to be a re-install. Using that file..."
+			#	FILENAME="$DESTINATION/$FILENAME"
+			#fi
+			;;
+		"directory")
+			if [ -d "${DESTINTION}.old" ]; then
+				echo "Error: destination '$DESTINATION' is not a symlink, but folder '${DESTINTION}.old' already exists. This is unexpected."
+				exit 1
+			fi
+			echo "=> Creating symlink structure to make rollback simple..."
+			echoeval "mv $DESTINATION ${DESTINATION}.old"
+			echoeval "mkdir -p ${DESTINATION}.pv"
+			echoeval "ln -sf ${DESTINATION}.pv ${DESTINATION}"
+			;;
+		*)
+			echo "=> Error: destination '$DESTINATION' has an unexpected type '$DESTINATION_TYPE'."
+			exit 1
+			;;
+	esac
+else
+	echo "=> Destination doesn't exist. Creating symlink structure now..."
+	echoeval "mkdir -p ${DESTINATION}.pv"
+	echoeval "ln -sf ${DESTINATION}.pv ${DESTINATION}"
+fi
+
+echo "Checking for file '$FILENAME'..."
+if [ -f $FILENAME ]; then
+	echo "=> File found."
+	FILENAME="$(readlink -e $FILENAME)"
+	exitif "$? -ne 0" "Error: readlink call returned non-zero; maybe it\'s not installed?"
+else
+	echo "=> File not found."
+
+	echo "Downloading '$FILENAME' to '$DESTINATION' from repo.polyverse.io..."
+	downloadScrambledTarball "$FILENAME" "$DESTINATION"
+	exitif "$? -ne 0" "Error: downloadScrambledTarball failed."
+
+	FILENAME="$DESTINATION/$FILENAME"
+fi
+
+if [ -f "$FILENAME" ] && [ ! -s "$FILENAME" ]; then
+	echo "Error: tarball '$FILENAME' does not exist, or is empty."
+	exit 1
+fi
+
+echo "File tarball '$FILENAME' will be extracted to '$DESTINATION'."
+
+echoeval "tar xvf $FILENAME -C ${DESTINATION}.pv >/dev/null 2>&1"
+
+echo "Finished."
+
