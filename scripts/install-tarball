@@ -16,14 +16,14 @@ usage: curl https://sh.polyverse.io | sh -s install-tarball --authkey <authkey> 
 
 required:
 
-   --authkey <authkey>
-   --filename <filename>
-   --destination </path/to/folder>
+   --authkey <authkey>                                 Polymorphic Linux authentication key (provided by Polyverse)
+   --filename <filename>                               Polymorphic tarball to download (or path to file if already downloaded)
+   --destination </path/to/folder>                     Folder to extract the tarball (or with --download-only, download folder)
 
 options:
 
-   [--nodeid <nodeid>]
-   [--download-only]
+   [--nodeid <nodeid>]                                 Provide a unique id for this node for reporting. Default is hostname.
+   [--download-only]                                   Download the --filename Polymorphic tarball only to --destination folder.
    [--help]                                            Display usage.
 
 EOF
