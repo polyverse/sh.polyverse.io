@@ -26,7 +26,7 @@ jre/ folder and the corresponding tarball is determined and downloaded.
 
 Usage:
 
-   ./polyjdk_install.sh <options>
+   curl https://sh.polyverse.io | sh -s polyjdk_install <options>
 
 Options:
 
@@ -40,18 +40,18 @@ Options:
 Examples:
 
    - Default installation process
-       $ ./polyjdk_install.sh --authkey <authkey>
+       $ curl https://sh.polyverse.io | sh -s polyjdk_install.sh --authkey <authkey>
 
    - Just download the tarball, but don't install. This is useful if you the
      installation will be on a separate host that doesn't have internet access.
-       $ ./polyjdk_install.sh --authkey <authkey> --download-only
+       $ curl https://sh.polyverse.io | sh -s polyjdk_install.sh --authkey <authkey> --download-only
 
    - Install a pre-downloaded tarball. In this example, the tarball has been
      placed in /opt/arcsight.
-       $ ./polyjdk_install.sh --destination /opt/arcsight
+       $ curl https://sh.polyverse.io | sh -s polyjdk_install.sh --destination /opt/arcsight
 
    - Uninstall
-       $ ./polyjdk_install.sh --uninstall
+       $ curl https://sh.polyverse.io | sh -s polyjdk_install.sh --uninstall
 
 EOF
 }
