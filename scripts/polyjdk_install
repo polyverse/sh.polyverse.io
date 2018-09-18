@@ -300,7 +300,9 @@ function scanProcess() {
 
 # due to the way sh.polyverse.io works, $1 is used to determine which script to run
 # but for the script itself, we want to get rid of the first argument
-shift
+if [ "$1" = "polyjdk_install" ]; then
+        shift
+fi
 
 if [ $# -eq 0 ]; then
         usage
