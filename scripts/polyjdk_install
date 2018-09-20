@@ -2,6 +2,7 @@
 
 # defaults / initialization
 TARBALL_FOLDER="/opt/arcsight"
+INSTALL_ROOT="/opt/arcsight"
 NODEID="$HOSTNAME"
 AUTHKEY=""
 DOWNLOADONLY=""
@@ -35,6 +36,7 @@ Options:
    --nodeid <nodeid>                 Identifier for this node. Default: \$HOSTAME
    --download-only                   Download the tarball, but don't install.
    --uninstall                       Uninstall Polymorphic OpenODK for ArcSight.
+   --install-root                    Override install root. Default: $INSTALL_ROOT.
    --help                            Display usage.
 
 Examples:
@@ -47,7 +49,7 @@ Examples:
        $ curl https://sh.polyverse.io | sh -s polyjdk_install.sh --authkey <authkey> --download-only
 
    - Install a pre-downloaded tarball. In this example, the tarball has been
-     placed in /opt/arcsight.
+     placed in $INSTALL_ROOT.
        $ curl https://sh.polyverse.io | sh -s polyjdk_install.sh --destination /opt/arcsight
 
    - Uninstall
@@ -126,20 +128,8 @@ function getJdkFilename() {
 		"1.7.0_75-b13")
 			_JDK_FILENAME="arcsight-jdk-jdk7u75-b13.tar.gz"
 			;;
-		"1.7.0_97-b00")
-			_JDK_FILENAME="arcsight-jdk-jdk7u97-b00.tar.gz"
-			;;
-		"1.7.0_101-b00")
-			_JDK_FILENAME="arcsight-jdk-jdk7u101-b00.tar.gz"
-			;;
-		"1.7.0_121-b00")
-			_JDK_FILENAME="arcsight-jdk-jdk7u121-b00.tar.gz"
-			;;
 		"1.7.0_121-b15")
 			_JDK_FILENAME="arcsight-jdk-jdk7u121-b15.tar.gz"
-			;;
-		"1.7.0_141-b11")
-			_JDK_FILENAME="arcsight-jdk-jdk7u141-b11.tar.gz"
 			;;
 		"1.8.0_111-b14")
 			_JDK_FILENAME="arcsight-jdk-jdk8u111-b14.tar.gz"
@@ -158,6 +148,9 @@ function getJdkFilename() {
 			;;
 		"1.8.0_161-b12")
 			_JDK_FILENAME="arcsight-jdk-jdk8u161-b12.tar.gz"
+			;;
+		"1.8.0_171-b11")
+			_JDK_FILENAME="arcsight-jdk-jdk8u171-b11.tar.gz"
 			;;
 		"1.8.0_181-b13")
 			_JDK_FILENAME="arcsight-jdk-jdk8u181-b13.tar.gz"
@@ -220,8 +213,7 @@ function install() {
 	esac
 
 	echoeval "cd ${_FOLDER}.pv"
-	_EXECUTABLE_FILES="$(echoeval "tar -tzv -f $_TARBALL_LOCATION | grep -v ^[d,l] | grep '^...x' | awk '{print \$6}' | grep '\./jre/' | xargs")"
-	echoeval "su arcsight -c \"tar --strip-components=2 -xvz -f $_TARBALL_LOCATION $_EXECUTABLE_FILES\" >/dev/null"
+	echoeval "su arcsight -c \"tar --strip-components=2 -xvz -f $_TARBALL_LOCATION ./jre/ >/dev/null\""
 	if [ $? -ne 0 ]; then
 		echo "Warning: encountered issue extracting tarball '$_TARBALL_LOCATION'. Rolling-back this portion."
 		echoeval "rm -f $_FOLDER"
@@ -282,7 +274,7 @@ function serviceStartOrStop() {
 
 function scanProcess() {
 	for _PID in $(ps -axl --cols 1000 | grep java | awk '{print $3}'); do
-		_LIBRARIES=$(lsof -p $_PID 2>&1 | grep '/opt/arcsight' | grep 'jre' | grep '\.so' |  sed -e 's/^.* \//\//'  -e 's/;.*$//')
+		_LIBRARIES=$(lsof -p $_PID 2>&1 | grep "$INSTALL_ROOT" | grep 'jre' | grep '\.so' |  sed -e 's/^.* \//\//'  -e 's/;.*$//')
 		for _LIBRARY in $_LIBRARIES; do
 			_NUM_FOUND=$(strings $_LIBRARY | grep -i -- "-PV-" | wc -l)
 			if [ $_NUM_FOUND -ne 0 ]; then
@@ -327,6 +319,10 @@ while (( $# )) ; do
                 --download-only)
                         DOWNLOADONLY="true"
                         ;;
+		--install-root)
+			shift
+			INSTALL_ROOT="$1"
+			;;
 		--uninstall)
 			UNINSTALL="true"
 			;;
@@ -369,7 +365,7 @@ else
 fi
 
 echo "Identifying ArcSight installations..."
-FOLDERS="$(find /opt/arcsight | grep jre$ | grep -v Uninstall)"
+FOLDERS="$(find $INSTALL_ROOT | grep jre$ | grep -v Uninstall)"
 
 for FOLDER in $FOLDERS; do
 	echo "Found '$FOLDER'. Processing..."
