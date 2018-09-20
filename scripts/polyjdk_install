@@ -213,7 +213,7 @@ function install() {
 	esac
 
 	echoeval "cd ${_FOLDER}.pv"
-	echoeval "su arcsight -c \"tar --strip-components=2 -xvz -f $_TARBALL_LOCATION ./jre/ >/dev/null\""
+	echoeval "su arcsight -c \"tar --strip-components=2 -xvz -f $_TARBALL_LOCATION ./jre/\""
 	if [ $? -ne 0 ]; then
 		echo "Warning: encountered issue extracting tarball '$_TARBALL_LOCATION'. Rolling-back this portion."
 		echoeval "rm -f $_FOLDER"
