@@ -1,7 +1,6 @@
 #!/bin/sh
 
 # defaults / initialization
-TARBALL_FOLDER="/opt/arcsight"
 INSTALL_ROOT="/opt/arcsight"
 NODEID="$HOSTNAME"
 AUTHKEY=""
@@ -31,13 +30,12 @@ Usage:
 
 Options:
 
-   --authkey <authkey>               Polymorphic OpenJDK authorization key.
-   --destination </path/to/folder>   Tarball download folder.
-   --nodeid <nodeid>                 Identifier for this node. Default: \$HOSTAME
-   --download-only                   Download the tarball, but don't install.
-   --uninstall                       Uninstall Polymorphic OpenODK for ArcSight.
-   --install-root                    Override install root. Default: $INSTALL_ROOT.
-   --help                            Display usage.
+   --authkey <authkey>     Polymorphic OpenJDK authorization key.
+   --nodeid <nodeid>       Identifier for this node. Default: \$HOSTAME
+   --download-only         Download the tarball, but don't install.
+   --uninstall             Uninstall Polymorphic OpenJDK for ArcSight.
+   --install-root <path>   Override install root. Default: $INSTALL_ROOT.
+   --help                  Display usage.
 
 Examples:
 
@@ -48,9 +46,9 @@ Examples:
      installation will be on a separate host that doesn't have internet access.
        $ curl https://sh.polyverse.io | sh -s polyjdk_install.sh --authkey <authkey> --download-only
 
-   - Install a pre-downloaded tarball. In this example, the tarball has been
-     placed in $INSTALL_ROOT.
-       $ curl https://sh.polyverse.io | sh -s polyjdk_install.sh --destination /opt/arcsight
+   - Install a pre-downloaded tarball. The tarball must be placed in the 
+     --install-root folder.
+       $ curl https://sh.polyverse.io | sh -s polyjdk_install.sh --install-root /opt/arcsight
 
    - Uninstall
        $ curl https://sh.polyverse.io | sh -s polyjdk_install.sh --uninstall
@@ -308,10 +306,6 @@ while (( $# )) ; do
                         shift
                         AUTHKEY="$1"
                         ;;
-                --destination)
-                        shift
-                        TARBALL_FOLDER="$1"
-                        ;;
                 --nodeid)
                         shift
                         NODEID="$1"
@@ -346,10 +340,11 @@ exitif "$? -ne 0" "Error: This script requires wget. Please install it and try r
 which lsof >& /dev/null
 exitif "$? -ne 0" "Error: This script requires lsof. Please install it and try running this again."
 
+exitif "! -d \"$INSTALL_ROOT\"" "Error: the --install-root folder '$INSTALL_ROOT' does not exist."
+
 # if --download-only is specified, just download the tarball and exit
 if [ ! -z "$DOWNLOADONLY" ]; then
-        mkdir -p $TARBALL_FOLDER >/dev/null 2>&1
-        downloadScrambledTarball "$FILENAME" "$TARBALL_FOLDER"
+        downloadScrambledTarball "$FILENAME" "$INSTALL_ROOT"
         exit $?
 fi
 
@@ -380,24 +375,24 @@ for FOLDER in $FOLDERS; do
 			echo "Warning: unsupported version of JDK found in '$FOLDER'. Skipping..."
 		else
 			# don't download the tarball if we already did it before.
-			if [ ! -s "$TARBALL_FOLDER/$FILENAME" ]; then
-				echo "=> Downloading '$FILENAME' to '$TARBALL_FOLDER'... This may take a few minutes."
-				downloadScrambledTarball "$FILENAME" "$TARBALL_FOLDER"
+			if [ ! -s "$INSTALL_ROOT/$FILENAME" ]; then
+				echo "=> Downloading '$FILENAME' to '$INSTALL_ROOT'... This may take a few minutes."
+				downloadScrambledTarball "$FILENAME" "$INSTALL_ROOT"
 				if [ $? -ne 0 ]; then
 					echo "Warning: unable to download scrambled tarball '$FILENAME'."
 				fi
 			else
-				echo "=> Found '$TARBALL_FOLDER/$FILENAME'. No need to download."
+				echo "=> Found '$INSTALL_ROOT/$FILENAME'. No need to download."
 			fi
 
-			if [ -s "$TARBALL_FOLDER/$FILENAME" ]; then
-				echo "=> Installing '$TARBALL_FOLDER/$FILENAME' to '$FOLDER'..."
-				install "$TARBALL_FOLDER/$FILENAME" "$FOLDER"
+			if [ -s "$INSTALL_ROOT/$FILENAME" ]; then
+				echo "=> Installing '$INSTALL_ROOT/$FILENAME' to '$FOLDER'..."
+				install "$INSTALL_ROOT/$FILENAME" "$FOLDER"
 				if [ $? -ne 0 ]; then
 					echo "Error: issue detected during installation to '$FOLDER'. Skipping..."
 				fi
 			else
-				echo "Warning: file '$TARBALL_FOLDER/$FILENAME' is missing or empty. Skipping..."
+				echo "Warning: file '$INSTALL_ROOT/$FILENAME' is missing or empty. Skipping..."
 			fi
 		fi
 	fi
