@@ -186,20 +186,28 @@ function install() {
 				return 1
 			fi
 
+			_OWNER="$(stat --format=%G $_FOLDER)"
+			if [ -z "$_OWNER" ]; then
+				echo "Warning: unable to determine owner of '$_FOLDER'. Defaulting to 'arcsight'."
+				_OWNER="arcsight"
+			fi
+
+			echo "=> Detected owner '$_OWNER' for folder '$_FOLDER'." 
+
 			echo "=> Creating symlink/overlay structure to make rollback simple..."
-			echoeval "su arcsight -c \"mv $_FOLDER ${_FOLDER}.old\""
+			echoeval "su $_OWNER -c \"mv $_FOLDER ${_FOLDER}.old\""
 			if [ $? -ne 0 ]; then
 				echo "Warning: encountered issue renaming '$_FOLDER' to '${_FOLDER}.old'."
 				return 1
 			fi
 
-			echoeval "su arcsight -c \"cp -a ${_FOLDER}.old ${_FOLDER}.pv\""
+			echoeval "su $_OWNER -c \"cp -a ${_FOLDER}.old ${_FOLDER}.pv\""
 			if [ $? -ne 0 ]; then
 				echo "Warning: encountered issue copying '${_FOLDER}.old' to '${_FOLDER}.pv'."
 				return 1 
 			fi
 
-			echoeval "su arcsight -c \"ln -s ${_FOLDER}.pv $_FOLDER\""
+			echoeval "su $_OWNER -c \"ln -s ${_FOLDER}.pv $_FOLDER\""
 			if [ $? -ne 0 ]; then
 				echo "Warning: encountered creating symlink '$_FOLDER' to '${_FOLDER}.pv'."
 				return 1
@@ -211,7 +219,7 @@ function install() {
 	esac
 
 	echoeval "cd ${_FOLDER}.pv"
-	echoeval "su arcsight -c \"tar --strip-components=2 -xvz -f $_TARBALL_LOCATION ./jre/\""
+	echoeval "su $_OWNER -c \"tar --strip-components=2 -xvz -f $_TARBALL_LOCATION ./jre/\""
 	if [ $? -ne 0 ]; then
 		echo "Warning: encountered issue extracting tarball '$_TARBALL_LOCATION'. Rolling-back this portion."
 		echoeval "rm -f $_FOLDER"
