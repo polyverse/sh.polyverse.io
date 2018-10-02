@@ -186,7 +186,7 @@ function install() {
 				return 1
 			fi
 
-			_OWNER="$(stat --format=%G $_FOLDER)"
+			_OWNER="$(stat --format=%U $_FOLDER)"
 			if [ -z "$_OWNER" ]; then
 				echo "Warning: unable to determine owner of '$_FOLDER'. Defaulting to 'arcsight'."
 				_OWNER="arcsight"
