@@ -1,10 +1,25 @@
 #!/bin/sh
 
-SHORT_DESCRIPTION=""
+SHORT_DESCRIPTION="Retrieves the instance_id(s) of the current allocated instance(s)."
 
 #******************************************************************************#
 #                                 functions                                    #
 #******************************************************************************#
+
+usage() {
+cat >&2 <<-EOF
+	$SHORT_DESCRIPTION
+
+	Usage:
+
+	  curl https://sh.polyverse.io | sh -s instance-id [<options>]
+
+	Options:
+
+	  --help                 Display usage
+
+EOF
+}
 
 getDistro() {
 	_DISTRO="$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')"
@@ -88,6 +103,24 @@ getAptUrls() {
 #                                    main                                      #
 #******************************************************************************#
 
+# due to the way sh.polyverse.io works, $1 is used to determine which script to run
+# but for the script itself, we want to get rid of the first argument
+if [ "$1" = "instance-id" ]; then
+        shift
+fi
+
+while [ $# -gt 0 ]; do
+        case "$1" in
+                --help)
+                        usage
+			exit 1
+                        ;;
+                *)
+                        echo "Unhandled argument '$1'."
+                        exit 1
+        esac
+        shift
+done
 
 # Make sure we're able to retrieve the distro release id (e.g., alpine, centos, ubuntu) and version id.
 DISTRO="$(getDistro)"
