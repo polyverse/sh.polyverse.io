@@ -1,58 +1,125 @@
 #!/bin/sh
 
-SHORT_DESCRIPTION="Retrieves the instance_id(s) of the current allocated instance(s)."
+SHORT_DESCRIPTION=""
 
-# Defaults
-REPO_FILE="/etc/yum.repos.d/polyverse.repo"
+#******************************************************************************#
+#                                 functions                                    #
+#******************************************************************************#
 
-usage() {
-cat >&2 <<-EOF
+getDistro() {
+	_DISTRO="$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')"
 
-$SHORT_DESCRIPTION
+	if [ -z "$_DISTRO" ] && [ ! -z "$(cat /etc/*-release | grep ^CentOS)" ]; then
+		_DISTRO="centos"
+	fi
 
-Usage:
+	if [ -z "$_DISTRO" ] && [ ! -z "$(cat /etc/*-release | grep ^Red)" ]; then
+		_DISTRO="rhel"
+	fi
 
-  curl https://sh.polyverse.io | sh -s instance-id [<options>]
+	if [ -z "$_DISTRO" ]; then
+		return 1
+	fi
 
-Options:
-
-  --help                 Display usage
-
-EOF
+	echo "$_DISTRO"
 }
 
-shift
-while [ $# -gt 0 ]; do
-        case "$1" in
-                --help)
-                        usage
-                        ;;
-                *)
-                        echo "Unhandled argument '$1'."
-                        exit 1
-        esac
-        shift
-done
+getApkUrls() {
+	_ARCH="$1"
 
-type curl >/dev/null 2>&1
-if [ $? -ne 0 ]; then
-        echo "Please install curl."
-        exit 1
-fi
+	_INDEX_URLs="$(cat /etc/apk/repositories | grep repo.polyverse.io | awk '{print $1"/'$_ARCH'/APKINDEX.tar.gz"}')"
+	if [ -z "$_INDEX_URLs" ]; then
+		echo "Error: unable to find any repo.polyverse.io entries in /etc/apk/repositories. This only works after Polymorphic Linux is installed. See https://polyverse.io."
+		return 1
+	fi
 
+        echo "$_INDEX_URLs"
+        return 0
+}
+
+getRpmUrls() {
+	_COMPONENTS="polyverse-os polyverse-updates"
+
+	REPO_FILE="/etc/yum.repos.d/polyverse.repo"
+	if [ ! -s "$REPO_FILE" ]; then
+		(>&2 echo "Error: unable to find '$REPO_FILE'. This only works after Polymorphic Linux is installed. See https://polyverse.io.")
+	fi
+
+	for _COMPONENT in $_COMPONENTS; do
+		_BASE_URL="$(cat /etc/yum.repos.d/polyverse.repo | awk '/^\['$_COMPONENT'\]/,/^$/' | grep ^baseurl | awk -F= '{print $2}')"
+		if [ -z "$_BASE_URL" ]; then
+			echo "Error: unable to find baseurl= value."
+			return 1
+		fi
+
+		# if baseurl isn't username:password@ style, then construct it using username= and password=
+		if [ -z "$(echo $_BASE_URL | grep @repo.polyverse.io)" ]; then
+			_USERNAME="$(cat /etc/yum.repos.d/polyverse.repo | awk '/^\['$_COMPONENT'\]/,/^$/' | grep ^username | awk -F= '{print $2}')"
+			_PASSWORD="$(cat /etc/yum.repos.d/polyverse.repo | awk '/^\['$_COMPONENT'\]/,/^$/' | grep ^password | awk -F= '{print $2}')"
+
+			if [ -z "$_USERNAME" ] || [ -z "$_PASSWORD" ]; then
+				echo "Error: baseurl isn't https://<username>:<password>@repo.polyverse.io/... and there's no username= and/or password= field."
+				return 1
+			fi
+
+			_BASE_URL="$(echo $_BASE_URL | sed -e 's/^https:\/\//https:\/\/'$_USERNAME':'$_PASSWORD'@/g')"
+		fi
+
+		_INDEX_URL="$_INDEX_URL $_BASE_URL/repodata/repomd.xml"
+	done
+
+	echo "$_INDEX_URL"
+
+	return 0
+}
+
+getAptUrls() {
+	_INDEX_URLs="$(cat /etc/apt/sources.list | grep repo.polyverse.io | awk '{print $2"/"$3"Packages.xz"}')"
+	if [ -z "$_INDEX_URLs" ]; then
+		echo "Error: unable to find any repo.polyverse.io entries in /etc/apt/sources.list. This only works after Polymorphic Linux is installed. See https://polyverse.io."
+		return 1
+	fi
+
+	echo "$_INDEX_URLs"
+	return 0
+}
+
+#******************************************************************************#
+#                                    main                                      #
+#******************************************************************************#
+
+
+# Make sure we're able to retrieve the distro release id (e.g., alpine, centos, ubuntu) and version id.
+DISTRO="$(getDistro)"
 ARCH="$(uname -m)"
-RELEASE=$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')
 
-BASEURL="$(cat $REPO_FILE  2>/dev/null | awk '/^'$ESCAPED'/,/^$/' | grep baseurl | awk -F= '{print $2}' | sed 's/\$basearch/'$ARCH'/g' | sed 's/\$releasever/'$RELEASE'/g')"
-USERNAME="$(cat $REPO_FILE 2>/dev/null | awk '/^'$ESCAPED'/,/^$/' | grep ^username | sed 's/^username=//g' | head -n 1)"
-PASSWORD="$(cat $REPO_FILE 2>/dev/null | awk '/^'$ESCAPED'/,/^$/' | grep ^password | sed 's/^password=//g' | head -n 1)"
+case $DISTRO in
+	alpine)
+		URLs="$(getApkUrls $ARCH)"
+		;;
+	centos|fedora|rhel)
+		URLs="$(getRpmUrls)"
+		;;
+	ubuntu)
+		URLs="$(getAptUrls)"
+		;;
+	*)
+		echo "Distro '$DISTRO' not supported."
+		exit 1
+		;;
+esac
 
-# handle urls with and without trailing forward slash
-BASEURL="$(echo ${BASEURL%/})/"
-
-RESULT="$(curl -i -s https://$USERNAME:$PASSWORD@repo.polyverse.io/centos/$RELEASE/os/$ARCH/repodata/repomd.xml 2>/dev/null | grep Instance-Id)"
-if [ "$RESULT" = "" ]; then
-	echo "error: unable to determine instance_id."
+if [ $? -ne 0 ]; then
+	# if there's a problem with the getXxxUrls() function returns non-zero, the error message is captured in the URLs variable.
+	echo "$URLs"
 	exit 1
 fi
-echo "$RESULT" | awk -F':' '{print $2}' | xargs
+
+for URL in $URLs; do
+	INSTANCE_ID="$(curl -s -i $URL | grep ^Instance-Id: | awk '{print $2}')"
+	if [ -z "$INSTANCE_ID" ]; then
+		(>&2 echo "Warning: unable to determine instance-id for index file '$URL'.")
+	else
+		echo "$INSTANCE_ID"
+	fi
+done
