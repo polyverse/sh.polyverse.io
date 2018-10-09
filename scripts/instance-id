@@ -53,15 +53,17 @@ getApkUrls() {
 }
 
 getRpmUrls() {
-	_COMPONENTS="polyverse-os polyverse-updates"
+	_REPO_FILE="/etc/yum.repos.d/polyverse.repo"
 
-	REPO_FILE="/etc/yum.repos.d/polyverse.repo"
-	if [ ! -s "$REPO_FILE" ]; then
-		(>&2 echo "Error: unable to find '$REPO_FILE'. This only works after Polymorphic Linux is installed. See https://polyverse.io.")
+	if [ ! -s "$_REPO_FILE" ]; then
+		(>&2 echo "Error: unable to find '$_REPO_FILE'. This only works after Polymorphic Linux is installed. See https://polyverse.io.")
 	fi
 
+	# find section headers. starts with [, ends with ], and then strip out the start/end brackets
+	_COMPONENTS="$(cat $_REPO_FILE | grep '^\[.*\]$' | sed 's/^\[\(.*\)\]$/\1/')"
+
 	for _COMPONENT in $_COMPONENTS; do
-		_BASE_URL="$(cat /etc/yum.repos.d/polyverse.repo | awk '/^\['$_COMPONENT'\]/,/^$/' | grep ^baseurl | awk -F= '{print $2}')"
+		_BASE_URL="$(cat $_REPO_FILE | awk '/^\['$_COMPONENT'\]/,/^$/' | grep ^baseurl | awk -F= '{print $2}')"
 		if [ -z "$_BASE_URL" ]; then
 			echo "Error: unable to find baseurl= value."
 			return 1
