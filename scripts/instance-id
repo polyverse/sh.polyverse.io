@@ -60,7 +60,7 @@ getRpmUrls() {
 	fi
 
 	# find section headers. starts with [, ends with ], and then strip out the start/end brackets
-	_COMPONENTS="$(cat $_REPO_FILE | grep '^\[.*\]$' | sed 's/^\[\(.*\)\]$/\1/')"
+	_COMPONENTS="$(cat $_REPO_FILE | grep '^\[.*\]$' | sed 's/^\[\(.*\)\]$/\1/' | grep polyverse | grep -v polyverse-mirror)"
 
 	for _COMPONENT in $_COMPONENTS; do
 		_BASE_URL="$(cat $_REPO_FILE | awk '/^\['$_COMPONENT'\]/,/^$/' | grep ^baseurl | awk -F= '{print $2}')"
