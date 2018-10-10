@@ -3,22 +3,32 @@
 SHORT_DESCRIPTION="Output basic information about your host."
 
 whatDistro() {
+	_DISTRO=""
+
+	if [ -f /etc/os-release ]; then
+		_DISTRO="$(cat /etc/os-release | grep "^ID=" | cut -d "=" -f2 | tr -d '"')"
+	fi
+
+	if [ ! -z "$_DISTRO" ]; then
+		echo "$_DISTRO"
+		return 0
+	fi
+
 	if [ -f /etc/alpine-release ]; then
 		echo "alpine"
 		return 0
 	fi
+
 	if [ -f /etc/centos-release ]; then
 		echo "centos"
 		return 0
 	fi
-	if [ -f /etc/lsb-release ]; then
-		echo "ubuntu"
-		return 0
-	fi
+
 	if [ -f /etc/fedora-release ]; then
 		echo "fedora"
 		return 0
 	fi
+
 	if [ -f /etc/redhat-release ]; then
 		echo "rhel"
 		return 0
@@ -27,6 +37,24 @@ whatDistro() {
 	return 1
 }
 
+whatRelease() {
+	_RELEASE="$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')"
+
+	if [ -z "$_RELEASE" ] && [ -f /etc/centos-release ]; then
+		_RELEASE="$(cat /etc/centos-release | grep ^CentOS | sed 's/[[:alpha:]|(|)|[:space:]]//g')"
+	fi
+
+        if [ -z "$_RELEASE" ] && [ -f /etc/redhat-release ]; then
+                _RELEASE="$(cat /etc/redhat-release | grep ^Red | sed 's/[[:alpha:]|(|)|[:space:]]//g')"
+        fi
+
+        if [ ! -z "$_RELEASE" ]; then
+                echo "$_RELEASE"
+                return 0
+        fi
+
+	return 1
+}
 
 # make sure we're able to retrieve the distro release id (e.g., alpine, centos, ubuntu) and version id.
 DISTRO="$(whatDistro)"
@@ -34,7 +62,13 @@ if [ $? -ne 0 ]; then
 	(>&2 echo "Could not determine Linux distro. Exiting...")
 	exit 1
 fi
-RELEASE="$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')"
+
+RELEASE="$(whatRelease)"
+if [ $? -ne 0 ]; then
+        (>&2 echo "Could not determine Linux release version. Exiting...")
+        exit 1
+fi
+
 CODENAME="$(cat /etc/*-release 2>/dev/null | grep "^DISTRIB_CODENAME=" | cut -d '=' -f2 | tr -d '"')"
 ARCH="$(uname -m)"
 
