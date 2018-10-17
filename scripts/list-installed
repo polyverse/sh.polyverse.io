@@ -107,9 +107,9 @@ done
 
 INFO="$(curl -sS $PV_BASE_URL | sh -s info)"
 
-DISTRO="$(echo "$INFO" | grep ^distro: | awk '{print $2}')"
-RELEASE="$(echo "$INFO" | grep ^release: | awk '{print $2}')"
-ARCH="$(echo "$INFO" | grep ^arch: | awk '{print $2}')"
+DISTRO="$(echo "$INFO" | grep ^DISTRO= | awk -F= '{print $2}')"
+RELEASE="$(echo "$INFO" | grep ^RELEASE= | awk -F= '{print $2}')"
+ARCH="$(echo "$INFO" | grep ^ARCH= | awk -F= '{print $2}')"
 
 if [ -z "$DISTRO" ] || [ -z "$RELEASE" ] || [ -z "$ARCH" ]; then
 	(>&2 echo "Could not determine Linux distro. DISTRO='$DISTRO', RELEASE='$RELEASE', ARCH='$ARCH'. Exiting...")
@@ -140,10 +140,10 @@ TEMP_FILE=`mktemp`
 eval "$LIST_FUNC"
 EXIT_CODE=$?
 
-PACKAGES_FROM_PV="$(cat $TEMP_FILE | grep polyverse | grep -v polyverse-mirror | wc -l)"
-TOTAL_PACKAGES="$(cat $TEMP_FILE | wc -l)"
+#PACKAGES_FROM_PV="$(cat $TEMP_FILE | grep polyverse | grep -v polyverse-mirror | wc -l)"
+#TOTAL_PACKAGES="$(cat $TEMP_FILE | wc -l)"
 
-(>&2 echo "Packages from repo.polyverse.io: $PACKAGES_FROM_PV/$TOTAL_PACKAGES" )
+#(>&2 echo "Packages from repo.polyverse.io: $PACKAGES_FROM_PV/$TOTAL_PACKAGES" )
 rm $TEMP_FILE 2>/dev/null || true
 
 exit $EXIT_CODE
