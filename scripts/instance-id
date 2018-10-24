@@ -153,7 +153,8 @@ fi
 for URL in $URLs; do
 	INSTANCE_ID="$(curl -s -i $URL | grep ^Instance-Id: | awk '{print $2}')"
 	if [ -z "$INSTANCE_ID" ]; then
-		(>&2 echo "Warning: unable to determine instance-id for index file '$URL'.")
+		(>&2 echo "Error: unable to determine instance-id for index file '$URL'.")
+		exit 1
 	else
 		echo "$INSTANCE_ID"
 	fi
