@@ -22,26 +22,16 @@ EOF
 
 display_reinstall_cmd() {
   echo
-  echo "@@@@@   @@@@@@@@"
-  echo "@@@@@   @@@@@@@@@@@@"
-  echo "@@@@@   @@@@@@@@@@@@@@"
-  echo "              @@@@@@@@"
-  echo "@@@@@           @@@@@@@"
-  echo "@@@@@                       @@@@@@@@@@@@      @@@@@      @@@@@          @@@  @@@@@          @@@@ @@@@@@@@@@@@@@  @@@@@@@@@@@@      @@@@@@@@@@    @@@@@@@@@@@@@@"
-  echo "               @@@@@@@   @@@@@        @@@@    @@@@@       @@@@@       @@@@    @@@@@        @@@@  @@@@@           @@@@    @@@@@@  @@@@      @@@@  @@@@@"
-  echo "@@@@@   @@@@@@@@@@@@@@  @@@@@          @@@@@  @@@@@         @@@@@    @@@       @@@@@      @@@@   @@@@@           @@@@     @@@@@  @@@@@           @@@@@"
-  echo "@@@@@   @@@@@@@@@@@@   @@@@@@          @@@@@  @@@@@          @@@@@ @@@@         @@@@@     @@@    @@@@@           @@@@    @@@@@    @@@@@@         @@@@@"
-  echo "@@@@@   @@@@@@@@@@     @@@@@           @@@@@  @@@@@           @@@@@@@            @@@@@   @@@     @@@@@@@@@@@@    @@@@@@@@@@@        @@@@@@@@     @@@@@@@@@@@@@"
-  echo "                       @@@@@@          @@@@@  @@@@@             @@@@              @@@@@ @@@      @@@@@           @@@@  @@@@@            @@@@@@@  @@@@@"
-  echo "@@@@@                   @@@@@          @@@@@  @@@@@             @@@@              @@@@@@@@       @@@@@           @@@@   @@@@@             @@@@@  @@@@@"
-  echo "@@@@@                    @@@@@        @@@@    @@@@@             @@@@                @@@@@        @@@@@           @@@@     @@@@@  @@@@      @@@@  @@@@@"
-  echo "@@@@@                       @@@@@@@@@@@@      @@@@@@@@@@@@@@    @@@@                @@@@         @@@@@@@@@@@@@@  @@@@      @@@@@   @@@@@@@@@@@   @@@@@@@@@@@@@@"
+  echo "Installation successful! Polyverse is now your preferred repo!"
   echo
+  echo "From this point forward, any package you install (or re-install) will be secured"
+  echo "by Polyverse."
   echo
+  echo "More information available at:"
   echo
-  echo "Polyverse is now your preferred repo! From this point forward, any package you install (or re-install) will be secured by Polyverse."
+  echo "  https://polyverse.io/polymorphic-linux-installation-guide/"
   echo
-  echo "More information is available at http://info.polyverse.io/polymorphic-linux-cheatsheet. If you have any questions, you can reach us at support@polyverse.io"
+  echo "If you have any questions, you can reach us at support@polyverse.io."
   echo
 }
 

@@ -1,0 +1,116 @@
+#!/bin/sh
+
+#******************************************************************************#
+#                                 functions                                    #
+#******************************************************************************#
+
+_eval() {
+	(>&2 echo "+ $1")
+	eval "$1"
+	return $?
+}
+
+getDateCommand() {
+        case "$(uname)" in
+                Darwin)
+                        echo "gdate"
+                        ;;
+                Linux)
+                        echo "date"
+                        ;;
+                *)
+                        (>&2 echo "Error: unsupported OS '$(uname)'.")
+                        return 1
+                        ;;
+        esac
+
+	return 0
+}
+
+getEpochMS() {
+	case "$(uname)" in
+		Darwin)
+			_DATECMD="gdate"
+			;;
+		Linux)
+			_DATECMD="date"
+			;;
+		*)
+			(>&2 echo "Error: unsupported OS '$(uname)'.")
+			return 1
+			;;
+	esac
+
+	eval "$_DATECMD +%s%3N"
+	return $?
+}
+
+addToMessage() {
+	_MESSAGE="$1"
+	_KEY="$2"
+	_VAL="$3"
+
+	if [ ! -z "$_MESSAGE" ]; then
+		_MESSAGE="$_MESSAGE,"
+	fi
+
+	_MESSAGE="$_MESSAGE\\\"$_KEY\\\":\\\"$_VAL\\\""
+	echo "$_MESSAGE"
+	return 0
+}
+
+#******************************************************************************#
+#                                    main                                      #
+#******************************************************************************#
+
+LOG_GROUP="ops"
+LOG_STREAM="deployments"
+SERVICE_NAME="polyverse.io"
+STACK_NAME="master"
+VERSION="70a0e58359c859df24c100bf65e0bde1507fcd4c"
+DOCS="https://polyverse.atlassian.net/wiki/spaces/PR/pages/631734298/Runbook+for+https+polyverse.io"
+echo "Checking pre-requisites..."
+echo "=========================="
+
+_eval "aws --version"
+if [ $? -ne 0 ]; then
+	echo "Error: AWS CLI is not installed."
+	exit 1
+fi
+
+_eval "aws sts get-caller-identity"
+if [ $? -ne 0 ]; then
+	echo "Error: AWS CLI may not be configured."
+	exit 1
+fi
+
+DATECMD="$(getDateCommand)"
+_eval "$DATECMD"
+if [ $? -ne 0 ]; then
+        echo "Error: cannot find executable '$DATECMD'. Please install it (e.g., homebrew install coreutils)."
+        exit 1
+fi
+
+_eval "curl --version"
+if [ $? -ne 0 ]; then
+        echo "Error: Missing curl command. Please install it and try again."
+        exit 1
+fi
+
+echo
+
+POST_JSON="$(addToMessage "" "Event" "Change")"
+POST_JSON="$(addToMessage "$POST_JSON" "EventType" "deployment")"
+POST_JSON="$(addToMessage "$POST_JSON" "service" "$SERVICE_NAME")"
+POST_JSON="$(addToMessage "$POST_JSON" "stack" "$STACK_NAME")"
+POST_JSON="$(addToMessage "$POST_JSON" "version" "$VERSION")"
+POST_JSON="$(addToMessage "$POST_JSON" "docs" "$DOCS")"
+
+POST_JSON="[{\"timestamp\":$(getEpochMS),\"message\":\"{$POST_JSON}\"}]"
+echo "$POST_JSON"
+
+NEXT_SEQUENCE_TOKEN="$(_eval "aws logs describe-log-streams --log-group-name $LOG_GROUP | grep uploadSequenceToken | awk -F\\\" '{print \$4}'")"
+
+echo "NEXT_SEQUENCE_TOKEN: $NEXT_SEQUENCE_TOKEN"
+
+_eval "aws logs put-log-events --log-group-name $LOG_GROUP --log-stream-name \"$LOG_STREAM\" --log-events '$POST_JSON' --sequence-token $NEXT_SEQUENCE_TOKEN"
