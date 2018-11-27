@@ -29,24 +29,6 @@ getDateCommand() {
 	return 0
 }
 
-getEpochMS() {
-	case "$(uname)" in
-		Darwin)
-			_DATECMD="gdate"
-			;;
-		Linux)
-			_DATECMD="date"
-			;;
-		*)
-			(>&2 echo "Error: unsupported OS '$(uname)'.")
-			return 1
-			;;
-	esac
-
-	eval "$_DATECMD +%s%3N"
-	return $?
-}
-
 addToMessage() {
 	_MESSAGE="$1"
 	_KEY="$2"
@@ -107,6 +89,7 @@ PV_EVENT_ID="$(base64 < /dev/urandom | tr -dc A-Za-z0-9 | head -c 13 ; echo '')"
 
 POST_JSON="$(addToMessage "" "Event" "Change")"
 POST_JSON="$(addToMessage "$POST_JSON" "EventID" "$PV_EVENT_ID")"
+POST_JSON="$(addToMessage "$POST_JSON" "AwsUser" "$PV_AWS_USER")"
 # enumerate all the command-line arguments and set variables accordingly
 while (( $# )) ; do
         case $1 in
