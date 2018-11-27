@@ -1,5 +1,7 @@
 #!/bin/sh
 
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
+
 #******************************************************************************#
 #                                 functions                                    #
 #******************************************************************************#
@@ -63,14 +65,11 @@ addToMessage() {
 #                                    main                                      #
 #******************************************************************************#
 
-LOG_GROUP="ops"
-LOG_STREAM="deployments"
-SERVICE_NAME="polyverse.io"
-STACK_NAME="master"
-VERSION="70a0e58359c859df24c100bf65e0bde1507fcd4c"
-DOCS="https://polyverse.atlassian.net/wiki/spaces/PR/pages/631734298/Runbook+for+https+polyverse.io"
-echo "Checking pre-requisites..."
-echo "=========================="
+# due to the way sh.polyverse.io works, $1 is used to determine which script to run
+# but for the script itself, we want to get rid of the first argument
+if [ "$1" = "log-change-event" ]; then
+        shift
+fi
 
 _eval "aws --version"
 if [ $? -ne 0 ]; then
@@ -78,9 +77,9 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-_eval "aws sts get-caller-identity"
-if [ $? -ne 0 ]; then
-	echo "Error: AWS CLI may not be configured."
+PV_AWS_USER="$(aws iam get-user 2>&1 | tr " " "\n" | tr "," "\n" | tr "\"" "\n" | grep arn:)"
+if [ -z "$PV_AWS_USER" ]; then
+	echo "Error: Unable to determine AWS user. AWS CLI may not be configured."
 	exit 1
 fi
 
@@ -97,20 +96,72 @@ if [ $? -ne 0 ]; then
         exit 1
 fi
 
-echo
+PV_LOG_GROUP=""
+PV_LOG_STREAM=""
+PV_EVENT_TYPE=""
+PV_SERVICE_NAME=""
+PV_STACK_NAME=""
+PV_VERSION_ID=""
+PV_DOCS_LINK=""
+PV_EVENT_ID="$(base64 < /dev/urandom | tr -dc A-Za-z0-9 | head -c 13 ; echo '')"
 
 POST_JSON="$(addToMessage "" "Event" "Change")"
-POST_JSON="$(addToMessage "$POST_JSON" "EventType" "deployment")"
-POST_JSON="$(addToMessage "$POST_JSON" "service" "$SERVICE_NAME")"
-POST_JSON="$(addToMessage "$POST_JSON" "stack" "$STACK_NAME")"
-POST_JSON="$(addToMessage "$POST_JSON" "version" "$VERSION")"
-POST_JSON="$(addToMessage "$POST_JSON" "docs" "$DOCS")"
+POST_JSON="$(addToMessage "$POST_JSON" "EventID" "$PV_EVENT_ID")"
+# enumerate all the command-line arguments and set variables accordingly
+while (( $# )) ; do
+        case $1 in
+                --log-group)
+                        shift
+                        PV_LOG_GROUP="$1"
+                        ;;
+                --log-stream)
+                        shift
+                        PV_LOG_STREAM="$1"
+                        ;;
+                --event-type)
+			shift
+                        PV_EVENT_TYPE="$1"
+			POST_JSON="$(addToMessage "$POST_JSON" "EventType" "$PV_EVENT_TYPE")"
+                        ;;
+                --service-name)
+                        shift
+			PV_SERVICE_NAME="$1"
+			POST_JSON="$(addToMessage "$POST_JSON" "Service" "$PV_SERVICE_NAME")"
+                        ;;
+                --stack-name)
+			shift
+                        PV_STACK_NAME="$1"
+			POST_JSON="$(addToMessage "$POST_JSON" "Stack" "$PV_STACK_NAME")"
+                        ;;
+		--version-id)
+			shift
+			PV_VERSION_ID="$1"
+			POST_JSON="$(addToMessage "$POST_JSON" "Version" "$PV_VERSION_ID")"
+			;;
+		--docs-link)
+			shift
+			PV_DOCS_LINK="$1"
+			POST_JSON="$(addToMessage "$POST_JSON" "DocsLink" "$PV_DOCS_LINK")"
+			;;
+                --help)
+                        usage
+                        exit 1
+                        ;;
+                *)
+                        echo "ERROR: Unhandled argument '$1'."
+                        exit 1
+        esac
+        shift
+done
 
-POST_JSON="[{\"timestamp\":$(getEpochMS),\"message\":\"{$POST_JSON}\"}]"
-echo "$POST_JSON"
+if [ -z "$PV_LOG_GROUP" ] || [ -z "$PV_LOG_STREAM" ] || [ -z "$PV_EVENT_TYPE" ] || [ -z "$PV_SERVICE_NAME" ] || [ -z "$PV_STACK_NAME" ] || [ -z "$PV_VERSION_ID" ]; then
+	echo "Error: missing required argument."
+	exit 1
+fi
 
-NEXT_SEQUENCE_TOKEN="$(_eval "aws logs describe-log-streams --log-group-name $LOG_GROUP | grep uploadSequenceToken | awk -F\\\" '{print \$4}'")"
+POST_JSON="[{\"timestamp\":$($DATECMD +%s%3N),\"message\":\"{$POST_JSON}\"}]"
 
-echo "NEXT_SEQUENCE_TOKEN: $NEXT_SEQUENCE_TOKEN"
+NEXT_SEQUENCE_TOKEN="$(_eval "aws logs describe-log-streams --log-group-name $PV_LOG_GROUP | grep uploadSequenceToken | awk -F\\\" '{print \$4}'")"
+echo "$NEXT_SEQUENCE_TOKEN"
 
-_eval "aws logs put-log-events --log-group-name $LOG_GROUP --log-stream-name \"$LOG_STREAM\" --log-events '$POST_JSON' --sequence-token $NEXT_SEQUENCE_TOKEN"
+_eval "aws logs put-log-events --log-group-name $PV_LOG_GROUP --log-stream-name \"$PV_LOG_STREAM\" --log-events '$POST_JSON' --sequence-token $NEXT_SEQUENCE_TOKEN"
