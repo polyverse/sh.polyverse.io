@@ -1,8 +1,33 @@
 #!/bin/sh
 
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
+
 #******************************************************************************#
 #                                 functions                                    #
 #******************************************************************************#
+
+usage() {
+cat >&2 <<-EOF
+
+Put a change event to a specified CloudWatch log stream.
+
+Usage:
+
+  curl https://sh.polyverse.io | sh -s log-change-event <options>
+
+Options:
+
+  --log-group            CloudWatch log group
+  --log-stream           CloudWatch log stream
+  --event-type           Event type (e.g., "Deployment")
+  --service-name         Name of service this event applies to
+  --stack-name           Name of environment this event applies to
+  --version-id           Version of code/bits this event applies to
+  [--docs-link]          URL to documentation
+  [--help]               Display usage.
+
+EOF
+}
 
 _eval() {
 	(>&2 echo "+ $1")
@@ -27,24 +52,6 @@ getDateCommand() {
 	return 0
 }
 
-getEpochMS() {
-	case "$(uname)" in
-		Darwin)
-			_DATECMD="gdate"
-			;;
-		Linux)
-			_DATECMD="date"
-			;;
-		*)
-			(>&2 echo "Error: unsupported OS '$(uname)'.")
-			return 1
-			;;
-	esac
-
-	eval "$_DATECMD +%s%3N"
-	return $?
-}
-
 addToMessage() {
 	_MESSAGE="$1"
 	_KEY="$2"
@@ -63,26 +70,82 @@ addToMessage() {
 #                                    main                                      #
 #******************************************************************************#
 
-LOG_GROUP="ops"
-LOG_STREAM="deployments"
-SERVICE_NAME="polyverse.io"
-STACK_NAME="master"
-VERSION="70a0e58359c859df24c100bf65e0bde1507fcd4c"
-DOCS="https://polyverse.atlassian.net/wiki/spaces/PR/pages/631734298/Runbook+for+https+polyverse.io"
-echo "Checking pre-requisites..."
-echo "=========================="
+# due to the way sh.polyverse.io works, $1 is used to determine which script to run
+# but for the script itself, we want to get rid of the first argument
+if [ "$1" = "log-change-event" ]; then
+        shift
+fi
+
+PV_LOG_GROUP=""
+PV_LOG_STREAM=""
+PV_EVENT_TYPE=""
+PV_SERVICE_NAME=""
+PV_STACK_NAME=""
+PV_VERSION_ID=""
+PV_DOCS_LINK=""
+PV_EVENT_ID="$(base64 < /dev/urandom | tr -dc A-Za-z0-9 | head -c 13 ; echo '')"
+
+POST_JSON=""
+POST_JSON="$(addToMessage "$POST_JSON" "EventID" "$PV_EVENT_ID")"
+# enumerate all the command-line arguments and set variables accordingly
+while [ $# -gt 0 ]; do
+        case $1 in
+                --log-group)
+                        shift
+                        PV_LOG_GROUP="$1"
+                        ;;
+                --log-stream)
+                        shift
+                        PV_LOG_STREAM="$1"
+                        ;;
+                --event-type)
+			shift
+                        PV_EVENT_TYPE="$1"
+			POST_JSON="$(addToMessage "$POST_JSON" "EventType" "$PV_EVENT_TYPE")"
+                        ;;
+                --service-name)
+                        shift
+			PV_SERVICE_NAME="$1"
+			POST_JSON="$(addToMessage "$POST_JSON" "Service" "$PV_SERVICE_NAME")"
+                        ;;
+                --stack-name)
+			shift
+                        PV_STACK_NAME="$1"
+			POST_JSON="$(addToMessage "$POST_JSON" "Stack" "$PV_STACK_NAME")"
+                        ;;
+		--version-id)
+			shift
+			PV_VERSION_ID="$1"
+			POST_JSON="$(addToMessage "$POST_JSON" "Version" "$PV_VERSION_ID")"
+			;;
+		--docs-link)
+			shift
+			PV_DOCS_LINK="$1"
+			POST_JSON="$(addToMessage "$POST_JSON" "DocsLink" "$PV_DOCS_LINK")"
+			;;
+                --help)
+                        usage
+                        exit 1
+                        ;;
+                *)
+                        echo "ERROR: Unhandled argument '$1'."
+                        exit 1
+        esac
+        shift
+done
 
 _eval "aws --version"
 if [ $? -ne 0 ]; then
-	echo "Error: AWS CLI is not installed."
-	exit 1
+        echo "Error: AWS CLI is not installed."
+        exit 1
 fi
 
-_eval "aws sts get-caller-identity"
-if [ $? -ne 0 ]; then
-	echo "Error: AWS CLI may not be configured."
-	exit 1
+PV_AWS_USER="$(aws iam get-user 2>&1 | tr " " "\n" | tr "," "\n" | tr "\"" "\n" | grep arn:)"
+if [ -z "$PV_AWS_USER" ]; then
+        echo "Error: Unable to determine AWS user. AWS CLI may not be configured."
+        exit 1
 fi
+POST_JSON="$(addToMessage "$POST_JSON" "AwsUser" "$PV_AWS_USER")"
 
 DATECMD="$(getDateCommand)"
 _eval "$DATECMD"
@@ -97,20 +160,19 @@ if [ $? -ne 0 ]; then
         exit 1
 fi
 
-echo
+if [ -z "$PV_LOG_GROUP" ] || [ -z "$PV_LOG_STREAM" ] || [ -z "$PV_EVENT_TYPE" ] || [ -z "$PV_SERVICE_NAME" ] || [ -z "$PV_STACK_NAME" ] || [ -z "$PV_VERSION_ID" ]; then
+	echo "Error: missing required argument."
+	exit 1
+fi
 
-POST_JSON="$(addToMessage "" "Event" "Change")"
-POST_JSON="$(addToMessage "$POST_JSON" "EventType" "deployment")"
-POST_JSON="$(addToMessage "$POST_JSON" "service" "$SERVICE_NAME")"
-POST_JSON="$(addToMessage "$POST_JSON" "stack" "$STACK_NAME")"
-POST_JSON="$(addToMessage "$POST_JSON" "version" "$VERSION")"
-POST_JSON="$(addToMessage "$POST_JSON" "docs" "$DOCS")"
+if [ -z "$PV_MESSAGE" ]; then
+	PV_MESSAGE="Deployed service:$PV_SERVICE_NAME, version:$PV_VERSION_ID, stack:$PV_STACK_NAME, user:$PV_AWS_USER."
+fi
 
-POST_JSON="[{\"timestamp\":$(getEpochMS),\"message\":\"{$POST_JSON}\"}]"
-echo "$POST_JSON"
+PV_ISO8601_UTC_TIMESTAMP="$($DATECMD --utc +%FT%TZ)"
+POST_JSON="[{\"timestamp\":$($DATECMD +%s%3N),\"message\":\"{\\\"Event\\\":\\\"Change\\\",\\\"Message\\\":{$POST_JSON},\\\"level\\\":\\\"info\\\",\\\"time\\\":\\\"$PV_ISO8601_UTC_TIMESTAMP\\\",\\\"msg\\\":\\\"$PV_MESSAGE\\\"}\"}]"
 
-NEXT_SEQUENCE_TOKEN="$(_eval "aws logs describe-log-streams --log-group-name $LOG_GROUP | grep uploadSequenceToken | awk -F\\\" '{print \$4}'")"
+NEXT_SEQUENCE_TOKEN="$(_eval "aws logs describe-log-streams --log-group-name $PV_LOG_GROUP | grep uploadSequenceToken | awk -F\\\" '{print \$4}'")"
+echo "$NEXT_SEQUENCE_TOKEN"
 
-echo "NEXT_SEQUENCE_TOKEN: $NEXT_SEQUENCE_TOKEN"
-
-_eval "aws logs put-log-events --log-group-name $LOG_GROUP --log-stream-name \"$LOG_STREAM\" --log-events '$POST_JSON' --sequence-token $NEXT_SEQUENCE_TOKEN"
+_eval "aws logs put-log-events --log-group-name $PV_LOG_GROUP --log-stream-name $PV_LOG_STREAM --log-events '$POST_JSON' --sequence-token $NEXT_SEQUENCE_TOKEN"
