@@ -87,11 +87,11 @@ PV_VERSION_ID=""
 PV_DOCS_LINK=""
 PV_EVENT_ID="$(base64 < /dev/urandom | tr -dc A-Za-z0-9 | head -c 13 ; echo '')"
 
-POST_JSON="$(addToMessage "" "Event" "Change")"
+POST_JSON=""
 POST_JSON="$(addToMessage "$POST_JSON" "EventID" "$PV_EVENT_ID")"
 POST_JSON="$(addToMessage "$POST_JSON" "AwsUser" "$PV_AWS_USER")"
 # enumerate all the command-line arguments and set variables accordingly
-while (( $# )) ; do
+while [ $# -gt 0 ]; do
         case $1 in
                 --log-group)
                         shift
@@ -142,9 +142,14 @@ if [ -z "$PV_LOG_GROUP" ] || [ -z "$PV_LOG_STREAM" ] || [ -z "$PV_EVENT_TYPE" ] 
 	exit 1
 fi
 
-POST_JSON="[{\"timestamp\":$($DATECMD +%s%3N),\"message\":\"{$POST_JSON}\"}]"
+if [ -z "$PV_MESSAGE" ]; then
+	PV_MESSAGE="Deployed service:$PV_SERVICE_NAME, version:$PV_VERSION_ID, stack:$PV_STACK_NAME, user:$PV_AWS_USER."
+fi
+
+PV_ISO8601_UTC_TIMESTAMP="$($DATECMD --utc +%FT%TZ)"
+POST_JSON="[{\"timestamp\":$($DATECMD +%s%3N),\"message\":\"{\\\"Event\\\":\\\"Change\\\",\\\"Message\\\":{$POST_JSON},\\\"level\\\":\\\"info\\\",\\\"time\\\":\\\"$PV_ISO8601_UTC_TIMESTAMP\\\",\\\"msg\\\":\\\"$PV_MESSAGE\\\"}\"}]"
 
 NEXT_SEQUENCE_TOKEN="$(_eval "aws logs describe-log-streams --log-group-name $PV_LOG_GROUP | grep uploadSequenceToken | awk -F\\\" '{print \$4}'")"
 echo "$NEXT_SEQUENCE_TOKEN"
 
-_eval "aws logs put-log-events --log-group-name $PV_LOG_GROUP --log-stream-name \"$PV_LOG_STREAM\" --log-events '$POST_JSON' --sequence-token $NEXT_SEQUENCE_TOKEN"
+_eval "aws logs put-log-events --log-group-name $PV_LOG_GROUP --log-stream-name $PV_LOG_STREAM --log-events '$POST_JSON' --sequence-token $NEXT_SEQUENCE_TOKEN"
