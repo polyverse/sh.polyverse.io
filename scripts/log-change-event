@@ -6,6 +6,29 @@ if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
 #                                 functions                                    #
 #******************************************************************************#
 
+usage() {
+cat >&2 <<-EOF
+
+Put a change event to a specified CloudWatch log stream.
+
+Usage:
+
+  curl https://sh.polyverse.io | sh -s log-change-event <options>
+
+Options:
+
+  --log-group            CloudWatch log group
+  --log-stream           CloudWatch log stream
+  --event-type           Event type (e.g., "Deployment")
+  --service-name         Name of service this event applies to
+  --stack-name           Name of environment this event applies to
+  --version-id           Version of code/bits this event applies to
+  [--docs-link]          URL to documentation
+  [--help]               Display usage.
+
+EOF
+}
+
 _eval() {
 	(>&2 echo "+ $1")
 	eval "$1"
@@ -51,31 +74,6 @@ addToMessage() {
 # but for the script itself, we want to get rid of the first argument
 if [ "$1" = "log-change-event" ]; then
         shift
-fi
-
-_eval "aws --version"
-if [ $? -ne 0 ]; then
-	echo "Error: AWS CLI is not installed."
-	exit 1
-fi
-
-PV_AWS_USER="$(aws iam get-user 2>&1 | tr " " "\n" | tr "," "\n" | tr "\"" "\n" | grep arn:)"
-if [ -z "$PV_AWS_USER" ]; then
-	echo "Error: Unable to determine AWS user. AWS CLI may not be configured."
-	exit 1
-fi
-
-DATECMD="$(getDateCommand)"
-_eval "$DATECMD"
-if [ $? -ne 0 ]; then
-        echo "Error: cannot find executable '$DATECMD'. Please install it (e.g., homebrew install coreutils)."
-        exit 1
-fi
-
-_eval "curl --version"
-if [ $? -ne 0 ]; then
-        echo "Error: Missing curl command. Please install it and try again."
-        exit 1
 fi
 
 PV_LOG_GROUP=""
@@ -136,6 +134,31 @@ while [ $# -gt 0 ]; do
         esac
         shift
 done
+
+_eval "aws --version"
+if [ $? -ne 0 ]; then
+        echo "Error: AWS CLI is not installed."
+        exit 1
+fi
+
+PV_AWS_USER="$(aws iam get-user 2>&1 | tr " " "\n" | tr "," "\n" | tr "\"" "\n" | grep arn:)"
+if [ -z "$PV_AWS_USER" ]; then
+        echo "Error: Unable to determine AWS user. AWS CLI may not be configured."
+        exit 1
+fi
+
+DATECMD="$(getDateCommand)"
+_eval "$DATECMD"
+if [ $? -ne 0 ]; then
+        echo "Error: cannot find executable '$DATECMD'. Please install it (e.g., homebrew install coreutils)."
+        exit 1
+fi
+
+_eval "curl --version"
+if [ $? -ne 0 ]; then
+        echo "Error: Missing curl command. Please install it and try again."
+        exit 1
+fi
 
 if [ -z "$PV_LOG_GROUP" ] || [ -z "$PV_LOG_STREAM" ] || [ -z "$PV_EVENT_TYPE" ] || [ -z "$PV_SERVICE_NAME" ] || [ -z "$PV_STACK_NAME" ] || [ -z "$PV_VERSION_ID" ]; then
 	echo "Error: missing required argument."
