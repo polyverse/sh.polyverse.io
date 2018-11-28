@@ -87,7 +87,6 @@ PV_EVENT_ID="$(base64 < /dev/urandom | tr -dc A-Za-z0-9 | head -c 13 ; echo '')"
 
 POST_JSON=""
 POST_JSON="$(addToMessage "$POST_JSON" "EventID" "$PV_EVENT_ID")"
-POST_JSON="$(addToMessage "$POST_JSON" "AwsUser" "$PV_AWS_USER")"
 # enumerate all the command-line arguments and set variables accordingly
 while [ $# -gt 0 ]; do
         case $1 in
@@ -146,6 +145,7 @@ if [ -z "$PV_AWS_USER" ]; then
         echo "Error: Unable to determine AWS user. AWS CLI may not be configured."
         exit 1
 fi
+POST_JSON="$(addToMessage "$POST_JSON" "AwsUser" "$PV_AWS_USER")"
 
 DATECMD="$(getDateCommand)"
 _eval "$DATECMD"
