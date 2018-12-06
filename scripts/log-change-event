@@ -23,6 +23,7 @@ Options:
   --service-name         Name of service this event applies to
   --stack-name           Name of environment this event applies to
   --version-id           Version of code/bits this event applies to
+  --region               AWS region
   [--docs-link]          URL to documentation
   [--help]               Display usage.
 
@@ -103,6 +104,10 @@ while [ $# -gt 0 ]; do
                         PV_EVENT_TYPE="$1"
 			POST_JSON="$(addToMessage "$POST_JSON" "EventType" "$PV_EVENT_TYPE")"
                         ;;
+                --region)
+			shift
+			PV_AWS_REGION="--region $1"
+			;;
                 --service-name)
                         shift
 			PV_SERVICE_NAME="$1"
@@ -172,7 +177,7 @@ fi
 PV_ISO8601_UTC_TIMESTAMP="$($DATECMD --utc +%FT%TZ)"
 POST_JSON="[{\"timestamp\":$($DATECMD +%s%3N),\"message\":\"{\\\"Event\\\":\\\"Change\\\",\\\"Message\\\":{$POST_JSON},\\\"level\\\":\\\"info\\\",\\\"time\\\":\\\"$PV_ISO8601_UTC_TIMESTAMP\\\",\\\"msg\\\":\\\"$PV_MESSAGE\\\"}\"}]"
 
-NEXT_SEQUENCE_TOKEN="$(_eval "aws logs describe-log-streams --log-group-name $PV_LOG_GROUP | grep uploadSequenceToken | awk -F\\\" '{print \$4}'")"
+NEXT_SEQUENCE_TOKEN="$(_eval "aws logs describe-log-streams $PV_AWS_REGION --log-group-name $PV_LOG_GROUP | grep uploadSequenceToken | awk -F\\\" '{print \$4}'")"
 echo "$NEXT_SEQUENCE_TOKEN"
 
-_eval "aws logs put-log-events --log-group-name $PV_LOG_GROUP --log-stream-name $PV_LOG_STREAM --log-events '$POST_JSON' --sequence-token $NEXT_SEQUENCE_TOKEN"
+_eval "aws logs put-log-events $PV_AWS_REGION --log-group-name $PV_LOG_GROUP --log-stream-name $PV_LOG_STREAM --log-events '$POST_JSON' --sequence-token $NEXT_SEQUENCE_TOKEN"
