@@ -25,3 +25,10 @@ for SCRIPT in $SCRIPTS; do
 done
 
 cat docs/footer.txt | grep -v ^# >> usage.txt
+
+rm -frd out/
+mkdir -p out/scripts
+
+cp main.sh ./out/
+cp usage.txt ./out/
+cp -a ./scripts/. ./out/scripts/
