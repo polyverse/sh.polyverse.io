@@ -40,18 +40,18 @@ Options:
 Examples:
 
    - Default installation process
-       $ curl https://sh.polyverse.io | sh -s polyjdk_install.sh --authkey <authkey>
+       $ curl https://sh.polyverse.io | sh -s polyjdk_install --authkey <authkey>
 
    - Just download the tarball, but don't install. This is useful if you the
      installation will be on a separate host that doesn't have internet access.
-       $ curl https://sh.polyverse.io | sh -s polyjdk_install.sh --authkey <authkey> --download-only
+       $ curl https://sh.polyverse.io | sh -s polyjdk_install --authkey <authkey> --download-only
 
    - Install a pre-downloaded tarball. The tarball must be placed in the 
      --install-root folder.
-       $ curl https://sh.polyverse.io | sh -s polyjdk_install.sh --install-root /opt/arcsight
+       $ curl https://sh.polyverse.io | sh -s polyjdk_install --install-root /opt/arcsight
 
    - Uninstall
-       $ curl https://sh.polyverse.io | sh -s polyjdk_install.sh --uninstall
+       $ curl https://sh.polyverse.io | sh -s polyjdk_install --uninstall
 
 EOF
 }
