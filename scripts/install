@@ -79,6 +79,9 @@ apk_install() {
 		exit 1
 	fi
 
+	# Make sure mirrors.polyverse.io uses http instead of https
+	sed -i 's/^https.*mirrors\.polyverse\.io/http:\/\/mirrors.polyverse.io/g' $FILE
+
 	# Comment out all the lines that aren't repo.polyverse.io. After re-installing all packages, user must remove #
 	sed -in '/repo.polyverse.io/! s/^/#/' $FILE
 
