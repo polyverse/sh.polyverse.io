@@ -79,7 +79,10 @@ apk_install() {
 		exit 1
 	fi
 
-	display_reinstall_cmd "sed -n -i '/polyverse.io/p' /etc/apk/repositories && apk upgrade --update-cache --available"
+	# Comment out all the lines that aren't repo.polyverse.io. After re-installing all packages, user must remove #
+	sed -in '/repo.polyverse.io/! s/^/#/' $FILE
+
+	display_reinstall_cmd "apk update && apk upgrade --update-cache --available && sed -in 's/^#//g' /etc/apk/repositories"
 }
 
 rpm_install() {
