@@ -170,6 +170,14 @@ deb_install() {
 	display_reinstall_cmd "apt-get update && apt-get -y --allow-change-held-packages install --reinstall \$(dpkg --get-selections | awk '{print \$1}')"
 }
 
+encode() {
+	str="$1"
+	str="$(echo $str | sed 's/ /++/g')"
+	str="$(echo $str | sed 's/_/--/g')"
+	str="$(echo $str | sed 's/\//\^\^/g')"
+	echo "$str"
+}
+
 decode() {
 	str="$1"
 	str="$(echo $str | sed 's/++/ /g')"
@@ -236,6 +244,10 @@ RELEASE="$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2
 CODENAME="$(cat /etc/*-release 2>/dev/null | grep "^DISTRIB_CODENAME=" | cut -d '=' -f2 | tr -d '"')"
 ARCH="$(uname -m)"
 
+if [ "$DISTRO" == "alpine" ] && [ -f "/etc/apk/arch" ]; then
+	ARCH="$(cat /etc/apk/arch)"
+fi
+
 # Try to get PFRAC components from older meta-data in /etc (for CentOS and RHEL)
 if [ -z "$DISTRO" ] || [ -z "$RELEASE" ] || [ -z "$ARCH" ]; then
         if [ ! -z "$(cat /etc/*-release | grep ^CentOS)" ]; then
@@ -259,8 +271,8 @@ case $DISTRO in
 		# make 3.x vs 3.x.x
 		RELEASE="$(echo $RELEASE | awk -F'.' '{print $1"."$2}')"
 
-		PFRACs="$PFRACs alpine_apk_${RELEASE}_x86--64_main"
-		PFRACs="$PFRACs alpine_apk_${RELEASE}_x86--64_community"
+		PFRACs="$PFRACs alpine_apk_${RELEASE}_$(encode "$ARCH")_main"
+		PFRACs="$PFRACs alpine_apk_${RELEASE}_$(encode "$ARCH")_community"
 
 		INSTALL_FUNCTION="apk_install"
 		;;
