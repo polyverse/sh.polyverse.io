@@ -283,9 +283,6 @@ case $DISTRO in
 		INSTALL_FUNCTION="rpm_install"
 		;;
         rhel)
-		# make 7 vs. 7.6
-		RELEASE="$(echo $RELEASE | awk -F'.' '{print $1}')"
-
                 PFRACs="$PFRACs ${DISTRO}_rpm_${RELEASE}_x86--64_server"
 
                 INSTALL_FUNCTION="rpm_install"
