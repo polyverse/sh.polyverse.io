@@ -283,10 +283,13 @@ case $DISTRO in
 		INSTALL_FUNCTION="rpm_install"
 		;;
         rhel)
-                PFRACs="$PFRACs ${DISTRO}_rpm_${RELEASE}_x86--64_server"
+		# make 7 vs. 7.6
+		RELEASE="$(echo $RELEASE | awk -F'.' '{print $1}')"
 
-                INSTALL_FUNCTION="rpm_install"
-                ;;
+		PFRACs="$PFRACs ${DISTRO}_rpm_${RELEASE}_x86--64_server"
+
+		INSTALL_FUNCTION="rpm_install"
+		;;
 	ubuntu)
 		PFRACs="$PFRACs ubuntu_deb_${CODENAME}_binary--amd64_main "
 		PFRACs="$PFRACs ubuntu_deb_${CODENAME}-updates_binary--amd64_main"
