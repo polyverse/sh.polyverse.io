@@ -77,9 +77,8 @@ yum_list() {
 	ROWS="$($CMD list installed | grep -v ^Loaded | grep -v ^Installed)"
 	echo "$ROWS" | while read ROW; do
 		PKG="$(echo "$ROW" | awk '{print $1}')"
-		VER="$(echo "$ROW" | awk '{print $2}')"
 		REPO="$(echo "$ROW" | awk '{print $3}')"
-        	FILES="$(rpm -ql $PKG-$VER)"
+		FILES="$(rpm -ql $PKG)"
 		for FILE in $FILES; do
 			HEAD="$(head -c 4 $FILE 2>/dev/null)"
 			if [ "$HEAD" = $'\x7fELF' ]; then
