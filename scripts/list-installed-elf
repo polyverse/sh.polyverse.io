@@ -77,10 +77,11 @@ yum_list() {
 	ROWS="$($CMD list installed | grep -v ^Loaded | grep -v ^Installed)"
 	echo "$ROWS" | while read ROW; do
 		# ROW should look like: kernel.x86_64 2.6.32-754.10.1.el6 @updates
-		PKG="$(echo "$ROW" | awk '{print $1}' | sed 's/\..*$//g')"
+		PKG="$(echo "$ROW" | awk '{print $1}')"
+		PKG_NOARCH="$(echo "$PKG" | sed 's/\..*$//g')"
 		VER="$(echo "$ROW" | awk '{print $2}')"
 		REPO="$(echo "$ROW" | awk '{print $3}')"
-		FILES="$(rpm -ql $PKG-$VER)"
+		FILES="$(rpm -ql $PKG_NOARCH-$VER)"
 		for FILE in $FILES; do
 			HEAD="$(head -c 4 $FILE 2>/dev/null)"
 			if [ "$HEAD" = $'\x7fELF' ]; then
