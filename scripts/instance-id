@@ -71,8 +71,8 @@ getRpmUrls() {
 
 		# if baseurl isn't username:password@ style, then construct it using username= and password=
 		if [ -z "$(echo $_BASE_URL | grep @repo.polyverse.io)" ]; then
-			_USERNAME="$(cat /etc/yum.repos.d/polyverse.repo | awk '/^\['$_COMPONENT'\]/,/^$/' | grep ^username | awk -F= '{print $2}')"
-			_PASSWORD="$(cat /etc/yum.repos.d/polyverse.repo | awk '/^\['$_COMPONENT'\]/,/^$/' | grep ^password | awk -F= '{print $2}')"
+			_USERNAME="$(cat /etc/yum.repos.d/polyverse.repo | awk '/^\['$_COMPONENT'\]/,/^$/' | grep ^username | sed 's/^username=//g')"
+			_PASSWORD="$(cat /etc/yum.repos.d/polyverse.repo | awk '/^\['$_COMPONENT'\]/,/^$/' | grep ^password | sed 's/^password=//g')"
 
 			if [ -z "$_USERNAME" ] || [ -z "$_PASSWORD" ]; then
 				echo "Error: baseurl isn't https://<username>:<password>@repo.polyverse.io/... and there's no username= and/or password= field."
