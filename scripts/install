@@ -71,7 +71,7 @@ main() {
 		A="$(decode $(echo $PFRAC | awk -F'_' '{print $4}'))"
 		C="$(decode $(echo $PFRAC | awk -F'_' '{print $5}'))"
 
-		URL="https://repo.polyverse.io/register?authKey=$PV_AUTHKEY&nodeID=$PV_NODEID_$PFRAC&nodeName=$PV_NODEID&distro=$PV_DISTRO&project=$P&format=$F&release=$R&arch=$A&component=$C&releasever=$PV_VERSION_ID"
+		URL="https://repo.polyverse.io/register?authKey=$PV_AUTHKEY&nodeID=$PV_NODEID_$PFRAC&nodeName=$PV_NODEID&distro=$PV_DISTRO&project=$P&format=$F&release=$R&arch=$A&component=$C&releasever=$PV_VERSION_ID&gitsha=GITSHA"
 		_echo "$URL"
 
 		# 'wget --content-on-error -qO- "$URL"' doesn't work reliably across distros
@@ -299,7 +299,7 @@ apk_install() {
 	FILE='/etc/apk/repositories'
 
 	# download/install the key
-	curl https://repo.polyverse.io/config/apk/3/key -o "/etc/apk/keys/support@polyverse.io-5992017d.rsa.pub"
+	curl -s https://repo.polyverse.io/config/apk/3/key -o "/etc/apk/keys/support@polyverse.io-5992017d.rsa.pub"
 
 	# make sure the default repo file exists
 	if [ ! -f "$FILE" ]; then
@@ -351,7 +351,7 @@ apk_install() {
 rpm_install() {
 	FILE='/etc/yum.repos.d/polyverse.repo'
 
-	curl https://repo.polyverse.io/config/rpm/7/key -o "/etc/pki/RPM-GPG-KEY-Polyverse"
+	curl -s https://repo.polyverse.io/config/rpm/7/key -o "/etc/pki/RPM-GPG-KEY-Polyverse"
 
 	printf "$1" > $FILE
 

@@ -32,3 +32,6 @@ mkdir -p out/scripts
 cp main.sh ./out/
 cp usage.txt ./out/
 cp -a ./scripts/. ./out/scripts/
+
+# pass gitsha to /register endpoint
+sed -i 's/gitsha=GITSHA/gitsha='$(git rev-parse --verify HEAD | cut -c1-7)'/g' ./out/scripts/install
