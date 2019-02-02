@@ -12,7 +12,6 @@ install:
 script:
   - bash build.sh
   - bash test.sh
-deploy:
   - bash deploy.sh
 env:
   global:
