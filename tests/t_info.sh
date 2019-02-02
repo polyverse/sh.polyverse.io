@@ -10,7 +10,7 @@ while [ $INDEX -lt $LENGTH ]; do
 	IMAGE_NAME="$(cat t_info.json | jq -r '.['$INDEX'].image')"
 	echo "IMAGE_NAME: $IMAGE_NAME"
 
-	INFO="$(docker run --rm -v $PWD/../scripts:/opt/pv $IMAGE_NAME sh /opt/pv/info)"
+	INFO="$(docker run --rm -v $PWD/../scripts:/opt/pv $IMAGE_NAME /opt/pv/info)"
 	if [ ! -z "$PV_DEBUG" ]; then
 		echo "$INFO"
 	fi

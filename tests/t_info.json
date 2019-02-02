@@ -1,10 +1,10 @@
 [
 	{
 		"provider": "docker",
-		"image": "multiarch/alpine:arm64-v3.6",
+		"image": "multiarch/alpine:arm64-v3.8",
 		"asserts": [
 			"DISTRO=alpine",
-			"RELEASE=3.6",
+			"RELEASE=3.8",
 			"ARCH=aarch64",
 			"FORMAT=apk"
 		]
