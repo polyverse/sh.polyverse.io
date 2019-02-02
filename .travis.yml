@@ -1,5 +1,6 @@
 sudo: required
 dist: xenial
+# https://docs.travis-ci.com/user/job-lifecycle/
 before_install:
   - sudo apt update -y
   - sudo apt install -y awscli
@@ -10,6 +11,8 @@ install:
   - ln -s ~/.local/lib/pv/pv ~/.local/bin/pv
 script:
   - bash build.sh
+  - bash test.sh
+deploy:
   - bash deploy.sh
 env:
   global:
