@@ -26,7 +26,7 @@ main() {
 		return 1
 	fi
 
-	# parse command line and set global PV_ variables
+	# parse command line to set global PV_ variables
 	parseCommandLine "$@"
 	if [ $? -ne 0 ]; then return 1; fi
 
@@ -44,21 +44,57 @@ main() {
 	fi
 
 	if [ -z "$PV_NODEID" ]; then
-		PV_NODEID="$(echo "$PV_INFO" | grep "^HOSTNAME=" | cut -d "=" -f2 | tr -d '"')"
+		PV_NODEID="$(parseInfo HOSTNAME "$PV_INFO")"
+		if [ $? -ne 0 ]; then echo "$PV_NODEID"; return 1; fi
 	fi
 
-	PV_DISTRO="$(echo "$PV_INFO" | grep "^DISTRO=" | cut -d "=" -f2 | tr -d '"')"
-	PV_ARCH="$(echo "$PV_INFO" | grep "^ARCH=" | cut -d "=" -f2 | tr -d '"')"
-	PV_VERSION_ID="$(echo "$PV_INFO" | grep "^VERSION_ID=" | cut -d "=" -f2 | tr -d '"')"
-	PV_RELEASE="$(echo "$PV_INFO" | grep "^RELEASE=" | cut -d "=" -f2 | tr -d '"')"
-	PV_FORMAT="$(echo "$PV_INFO" | grep "^FORMAT=" | cut -d "=" -f2 | tr -d '"')"
+	if [ -z "$PV_DISTRO" ]; then
+		PV_DISTRO="$(parseInfo DISTRO "$PV_INFO")"
+		if [ $? -ne 0 ]; then echo "$PV_DISTRO"; return 1; fi
+	fi
+
+	if [ -z "$PV_ARCH" ]; then
+		PV_ARCH="$(parseInfo ARCH "$PV_INFO")"
+		if [ $? -ne 0 ]; then echo "$PV_ARCH"; return 1; fi
+	fi
+
+	if [ -z "$PV_VERSION_ID" ]; then
+		PV_VERSION_ID="$(parseInfo VERSION_ID "$PV_INFO")"
+		if [ $? -ne 0 ]; then echo "$PV_VERSION_ID"; return 1; fi
+	fi
+
+	if [ -z "$PV_RELEASE" ]; then
+		PV_RELEASE="$(parseInfo RELEASE "$PV_INFO")"
+		if [ $? -ne 0 ]; then echo "$PV_RELEASE"; return 1; fi
+	fi
+
+	if [ -z "$PV_FORMAT" ]; then
+		PV_FORMAT="$(parseInfo FORMAT "$PV_INFO")"
+		if [ $? -ne 0 ]; then echo "$PV_FORMAT"; return 1; fi
+	fi
 
 	_debugln "PV_AUTHKEY: $PV_AUTHKEY, PV_NODEID: $PV_NODEID, PV_DISTRO: $PV_DISTRO, PV_RELEASE: $PV_RELEASE, PV_VERSION_ID: $PV_VERSION_ID, PV_ARCH: $PV_ARCH, PV_FORMAT: $PV_FORMAT"
 
-	PV_PFRACs="$(generatePFRACs "$PV_DISTRO" "$PV_FORMAT" "$PV_RELEASE" "$PV_ARCH" "$PV_COMPONENTS")"
+	# generate the default PFRACs for this distro/format/release/arch; usually something like os and updates
+	PV_PFRACs="$(generateDefaultPFRACs "$PV_DISTRO" "$PV_FORMAT" "$PV_RELEASE" "$PV_ARCH")"
 	if [ $? -ne 0 ]; then
+		# if generateDefaultPFRACs returned non-zero, that means it's an unsupported distro/format/release/arch
+		# but we still want to attempt to register so that we have visibility into what's being requested
 		_debugln "Creating default PFRAC."
-		PV_PFRACs="$(encode "$PV_DISTRO")_${PV_FORMAT}_${PV_RELEASE}_${PV_ARCH}_default"
+		PV_PFRACs="$(encode "$PV_DISTRO")_${PV_FORMAT}_${PV_RELEASE}_$(encode "${PV_ARCH}")_default"
+	fi
+
+	# support for --add-components (e.g., "--add-components kernel")
+	if [ ! -z "PV_COMPONENTS" ]; then
+		RESULT="$(generateComponentsPFRACs "$PV_DISTRO" "$PV_FORMAT" "$PV_RELEASE" "$PV_ARCH" "$PV_COMPONENTS")"
+		if [ $? -ne 0 ]; then
+			# RESULT contains the error message
+			echo "$RESULT"
+			return 1
+		else
+			# RESULT contains the additional PFRACs that we want to concetenate to PV_PFRACs
+			PV_PFRACs="$PV_PFRACs $RESULT"
+		fi
 	fi
 
 	_debugln "PV_PFRACs: $PV_PFRACs"
@@ -109,21 +145,54 @@ _debugln() {
 }
 
 usage() {
-cat >&2 <<-EOF
+	cat >&2 <<-EOF
 
-Install Polymorphic Linux.
+	Install Polymorphic Linux.
 
-Usage:
+	Usage:
 
-  curl https://sh.polyverse.io | sh -s install [<options>] <authkey> [<nodeid>]
+	  curl https://sh.polyverse.io | sh -s install [<options>] <authkey> [<nodeid>]
 
-Options:
+	Options:
 
-  --help                 Display usage.
+	  --help                 Display usage.
 
-You can obtain a free trial authkey at https://polyverse.io.
+	You can obtain a free trial authkey at https://polyverse.io.
 
 EOF
+}
+
+parseInfo() {
+	_KEY="$1"
+	_INFO="$2"
+
+	if [ -z "${_KEY}" ] || [ -z "${_INFO}" ]; then
+		echo "parseInfo() missing required arguments."
+		return 1
+	fi
+
+	_VAL="$(echo "$_INFO" | grep "^${_KEY}=" | cut -d "=" -f2 | tr -d '"')"
+
+	if [ -z "${_VAL}" ]; then
+		echo "parseInfo() info value missing key '${_KEY}'."
+		return 1
+	fi
+
+	echo "${_VAL}"
+	return 0
+}
+
+parseInfoIfNeeded() {
+	_CURRENT="$1"
+	_KEY="$2"
+	_INFO="$3"
+
+	if [ ! -z "${_CURRENT}" ]; then
+		echo "${_CURRENT}"
+		return 0
+	fi
+
+	parseInfo "${_KEY}" "${_INFO}"
 }
 
 parseCommandLine() {
@@ -189,8 +258,8 @@ parseCommandLine() {
 	return 0
 }
 
-generatePFRACs() {
-	if [ $# -ne 5 ]; then
+generateDefaultPFRACs() {
+	if [ $# -ne 4 ]; then
 		_echo "Error: generatePFRACs() missing required arguments."
 		return 1
 	fi
@@ -199,9 +268,9 @@ generatePFRACs() {
 	_FORMAT="$2"
 	_RELEASE="$3"
 	_ARCH="$4"
-	_COMPONENTS="$5"
 
-	case $_DISTRO in
+	_PFRACs=""
+	case ${_DISTRO} in
 		alpine)
 			_PFRACs="${_PFRACs} ${_DISTRO}_apk_${_RELEASE}_$(encode ${_ARCH})_main"
 			_PFRACs="${_PFRACs} ${_DISTRO}_apk_${_RELEASE}_$(encode ${_ARCH})_community"
@@ -223,27 +292,49 @@ generatePFRACs() {
 			;;
 	esac
 
-	for _COMPONENT in $_COMPONENTS; do
-		case $_COMPONENT in
+	# echo'ing without quotes will remove leading/trailing whitespaces
+	echo ${_PFRACs}
+	return 0
+}
+
+generateComponentsPFRACs() {
+	if [ $# -ne 5 ]; then
+		_echo "Error: generateComponentsPFRACs() incorrect number of arguments: $#"
+		return 1
+	fi
+
+	_DISTRO="$1"
+	_FORMAT="$2"
+	_RELEASE="$3"
+	_ARCH="$4"
+	_COMPONENTS="$5"
+
+	_PFRACs=""
+
+	for _COMPONENT in ${_COMPONENTS}; do
+		case ${_COMPONENT} in
 			kernel)
-				case $_DISTRO in
+				case ${_DISTRO} in
 					centos|fedora|rhel)
 						_PFRACs="${_PFRACs} ${_DISTRO}_rpm_${_RELEASE}_$(encode ${_ARCH})_os-kernel"
 						_PFRACs="${_PFRACs} ${_DISTRO}_rpm_${_RELEASE}_$(encode ${_ARCH})_updates-kernel"
 						;;
 					*)
-						_echo "Error: component '$_COMPONENT' not supported on distro '$_DISTRO'."
+						echo "Error: component '${_COMPONENT}' not supported on distro '${_DISTRO}'."
 						return 1
 						;;
 				esac
 				;;
 			*)
-				_echo "Error: component '$_COMPONENT' not supported."
+				echo "Error: unknown component '${_COMPONENT}'."
 				return 1
+				;;
 		esac
 	done
 
-	echo "${_PFRACs}"
+	# echo'ing without quotes will remove leading/trailing whitespaces
+	echo ${_PFRACs}
+	return 0
 }
 
 encode() {

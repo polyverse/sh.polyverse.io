@@ -7,9 +7,12 @@ SHORT_DESCRIPTION="Output basic information about your host."
 #******************************************************************************#
 
 main() {
+	# pattern is that the get[...]() functions always returns 0 or 1 via $?
+	# if 0, then stdout represents the return value
+	# if 1, then stdout contains the error message
+
 	DISTRO="$(getDistro)"
 	if [ $? -ne 0 ]; then
-		# variable contains error message, so display to stderr and clear variable
 		(>&2 echo "$DISTRO")
 		return 1
 	fi
@@ -235,9 +238,14 @@ getArch() {
 	if [ $? -ne 0 ]; then
 		echo "Error: command 'uname -m' returned non-zero."
 		return 1
+	else
+		echo "${_ARCH}"
+		return 0
 	fi
-	echo "${_ARCH}"
-	return 0
+
+	# we should never get here, but keep in case we incorrectly change the logic above.
+	echo "Error: getArch() unexpected error."
+	return 1
 }
 
 getFormat() {
@@ -336,11 +344,11 @@ getHostName() {
 	fi
 
 	echo "Error: Unable to determine hostname."
-        return 1
+	return 1
 }
 
-
-
+# if you want to source this file, then set the variable PV_DEFINE_INCLUDE to non-empty
+# and then unset it after you source.
 if [ -z "$PV_DEFINE_INCLUDE" ]; then
 	main "$@"
 	exit $?
