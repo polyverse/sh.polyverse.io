@@ -44,8 +44,7 @@ main() {
 	fi
 
 	if [ -z "$PV_NODEID" ]; then
-		PV_NODEID="$(getNodeId)"
-		if [ -z "$PV_NODEID" ]; then _echo "Error: unable to determine a nodeid. Please explicitly provide one as an argument to the install script with --nodeid."; return 1; fi
+		PV_NODEID="$(echo "$PV_INFO" | grep "^HOSTNAME=" | cut -d "=" -f2 | tr -d '"')"
 	fi
 
 	PV_DISTRO="$(echo "$PV_INFO" | grep "^DISTRO=" | cut -d "=" -f2 | tr -d '"')"
@@ -188,23 +187,6 @@ parseCommandLine() {
 	done
 
 	return 0
-}
-
-getNodeId() {
-	# use HOSTNAME as the nodeid
-	if [ ! -z "$HOSTNAME" ]; then
-		echo "$HOSTNAME"
-		return 0
-	fi
-
-	# network node hostname
-	_NODEID="$(uname -n 2>/dev/null)"
-	if [ ! -z "$_NODEID" ]; then
-		echo "$_NODEID"
-		return 0
-	fi
-
-	return 1
 }
 
 generatePFRACs() {

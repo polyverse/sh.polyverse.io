@@ -26,7 +26,8 @@
 			"DISTRO=centos",
 			"RELEASE=6",
 			"ARCH=x86_64",
-			"FORMAT=rpm"
+			"FORMAT=rpm",
+			"KERNEL_NAME=Linux"
 		]
 	},
 	{

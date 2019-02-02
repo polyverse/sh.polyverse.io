@@ -50,10 +50,28 @@ main() {
 	fi
 	echo "FORMAT=$FORMAT"
 
-	echo "WHOAMI=$(whoami)"
+	HOSTNAME="$(getHostName)"
+	if [ $? -ne 0 ]; then
+		(>&2 echo "$HOSTNAME")
+		return 1
+	fi
 	echo "HOSTNAME=$HOSTNAME"
-	echo "KERNEL_NAME=$(getKernelName)"
-	echo "KERNEL_RELEASE=$(getKernelRelease)"
+
+	KERNEL_NAME="$(getKernelName)"
+	if [ $? -ne 0 ]; then
+		(>&2 echo "$KERNEL_NAME")
+		return 1
+	fi
+	echo "KERNEL_NAME=$KERNEL_NAME"
+
+	KERNEL_RELEASE="$(getKernelRelease)"
+	if [ $? -ne 0 ]; then
+		(>&2 echo "$KERNEL_RELEASE")
+		return 1
+	fi
+	echo "KERNEL_RELEASE=$KERNEL_RELEASE"
+
+	return 0
 }
 
 #******************************************************************************#
@@ -172,13 +190,25 @@ getVersionId() {
 }
 
 getKernelRelease() {
-	uname -r
-	return $?
+	_KERNEL_RELEASE="$(uname -r)"
+	if [ $? -ne 0 ] || [ -z "${_KERNEL_RELEASE}" ]; then
+		echo "Error: Unable to determine kernel release."
+		return 1
+	fi
+
+	echo "${_KERNEL_RELEASE}"
+	return 0
 }
 
 getKernelName() {
-	uname -s
-	return $?
+	_KERNEL_NAME="$(uname -s)"
+	if [ $? -ne 0 ] || [ -z "${_KERNEL_NAME}" ]; then
+		echo "Error: unable to determine kernel name."
+		return 1
+	fi
+
+	echo "${_KERNEL_NAME}"
+	return 0
 }
 
 getArch() {
@@ -290,6 +320,25 @@ getPackageManager() {
 	echo "Error: Unable to determine the package manager used by this Linux distro."
 	return 1
 }
+
+getHostName() {
+	# use HOSTNAME as the nodeid
+	if [ ! -z "$HOSTNAME" ]; then
+		echo "$HOSTNAME"
+		return 0
+	fi
+
+	# network node hostname
+	_NODEID="$(uname -n 2>/dev/null)"
+	if [ ! -z "$_NODEID" ]; then
+		echo "$_NODEID"
+		return 0
+	fi
+
+	echo "Error: Unable to determine hostname."
+        return 1
+}
+
 
 
 if [ -z "$PV_DEFINE_INCLUDE" ]; then
