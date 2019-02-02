@@ -1,0 +1,113 @@
+[
+	{
+		"provider": "docker",
+		"image": "multiarch/alpine:arm64-v3.6",
+		"asserts": [
+			"DISTRO=alpine",
+			"RELEASE=3.6",
+			"ARCH=aarch64",
+			"FORMAT=apk"
+		]
+	},
+	{
+		"provider": "docker",
+		"image": "multiarch/alpine:i386-v3.8",
+		"asserts": [
+			"DISTRO=alpine",
+			"RELEASE=3.8",
+			"ARCH=x86",
+			"FORMAT=apk"
+		]
+	},
+	{
+		"provider": "docker",
+		"image": "alpine:3.9",
+		"asserts": [
+			"DISTRO=alpine",
+			"RELEASE=3.9",
+			"ARCH=x86_64",
+			"FORMAT=apk"
+		]
+	},
+	{
+		"provider": "docker",
+		"image": "centos:6",
+		"asserts": [
+			"DISTRO=centos",
+			"RELEASE=6",
+			"ARCH=x86_64",
+			"FORMAT=rpm"
+		]
+	},
+	{
+		"provider": "docker",
+		"image": "fedora:23",
+		"asserts": [
+			"DISTRO=fedora",
+			"RELEASE=23",
+			"ARCH=x86_64",
+			"FORMAT=rpm"
+		]
+	},
+	{
+		"provider": "docker",
+		"image": "ubuntu:xenial",
+		"asserts": [
+			"DISTRO=ubuntu",
+			"RELEASE=xenial",
+			"VERSION_ID=16.04",
+			"ARCH=amd64",
+			"FORMAT=deb"
+		]
+	},
+	{
+		"provider": "docker",
+		"image": "registry.access.redhat.com/rhel6.10",
+		"asserts": [
+			"DISTRO=rhel",
+			"RELEASE=6",
+			"VERSION_ID=6.10",
+			"FORMAT=rpm"
+		]
+	},
+	{
+		"provider": "docker",
+		"image": "debian:7.11-slim",
+		"asserts": [
+			"DISTRO=debian",
+			"FORMAT=deb",
+			"PACKAGE_MANAGER=apt-get"
+		]
+	},
+	{
+		"provider": "docker",
+		"image": "oraclelinux:6",
+		"asserts": [
+			"DISTRO=ol",
+			"FORMAT=rpm",
+			"RELEASE=6",
+			"ARCH=x86_64",
+			"PACKAGE_MANAGER=yum"
+		]
+	},
+	{
+		"provider": "docker",
+		"image": "opensuse:tumbleweed",
+		"asserts": [
+			"DISTRO=opensuse",
+			"FORMAT=rpm",
+			"PACKAGE_MANAGER=zypper"
+		]
+	},
+	{
+		"provider": "docker",
+		"image": "opensuse:42.3",
+		"asserts": [
+			"DISTRO=opensuse",
+			"FORMAT=rpm",
+			"RELEASE=42.3",
+			"VERSION_ID=42.3",
+			"PACKAGE_MANAGER=zypper"
+		]
+	}
+]
