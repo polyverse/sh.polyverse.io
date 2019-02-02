@@ -2,11 +2,19 @@
 
 SHORT_DESCRIPTION="Install Polymorphic Linux"
 
+# set the environment variable PV_BASE_URL to test non-prod version
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
+
 #******************************************************************************#
 #                                 main                                         #
 #******************************************************************************#
 
 main() {
+	if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
+		_echo "Installation must be performed on a Linux system."
+		return 1
+	fi
+
 	curl >/dev/null 2>&1
 	if [ $? -eq 127 ]; then
 		_echo "This script requires curl. Please install it and try running this again."
@@ -14,7 +22,7 @@ main() {
 	fi
 
 	if [ $(id -u) -ne 0 ]; then
-		_echo "This script must be run as root. Please try running this again as a sudo or root user." 1>&2
+		_echo "This script must be run as root. Please try running this again as a sudo or root user."
 		return 1
 	fi
 
@@ -23,6 +31,12 @@ main() {
 	if [ $? -ne 0 ]; then return 1; fi
 
 	# collect and validate info we need for installation
+
+	PV_INFO="$(curl -s $PV_BASE_URL | PV_BASE_URL=$PV_BASE_URL sh -s info)"
+	if [ $? -ne 0 ]; then
+		_echo "Unable to determine Linux distribution details. Please contact support@polyverse.io."
+		return 1
+	fi
 
 	if [ -z "$PV_AUTHKEY" ]; then
 		usage
@@ -34,30 +48,15 @@ main() {
 		if [ -z "$PV_NODEID" ]; then _echo "Error: unable to determine a nodeid. Please explicitly provide one as an argument to the install script with --nodeid."; return 1; fi
 	fi
 
-	if [ -z "$PV_DISTRO" ]; then
-		PV_DISTRO="$(getDistro)"
-		if [ $? -ne 0 ]; then _echo "Error: unable to determine distro."; return 1; fi
-	fi
+	PV_DISTRO="$(echo "$PV_INFO" | grep "^DISTRO=" | cut -d "=" -f2 | tr -d '"')"
+	PV_ARCH="$(echo "$PV_INFO" | grep "^ARCH=" | cut -d "=" -f2 | tr -d '"')"
+	PV_VERSION_ID="$(echo "$PV_INFO" | grep "^VERSION_ID=" | cut -d "=" -f2 | tr -d '"')"
+	PV_RELEASE="$(echo "$PV_INFO" | grep "^RELEASE=" | cut -d "=" -f2 | tr -d '"')"
+	PV_FORMAT="$(echo "$PV_INFO" | grep "^FORMAT=" | cut -d "=" -f2 | tr -d '"')"
 
-	if [ -z "$PV_ARCH" ]; then
-		PV_ARCH="$(getArch)"
-		if [ $? -ne 0 ]; then _echo "Error: unable to determine architecture."; return 1; fi
-	fi
+	_debugln "PV_AUTHKEY: $PV_AUTHKEY, PV_NODEID: $PV_NODEID, PV_DISTRO: $PV_DISTRO, PV_RELEASE: $PV_RELEASE, PV_VERSION_ID: $PV_VERSION_ID, PV_ARCH: $PV_ARCH, PV_FORMAT: $PV_FORMAT"
 
-	PV_RELEASEVER="$(getReleaseVer)"
-	if [ $? -ne 0 ]; then _echo "Error: unable to determine Linux release version."; return 1; fi
-
-	if [ -z "$PV_RELEASE" ]; then
-		PV_RELEASE="$(getRelease $PV_DISTRO $PV_RELEASEVER)"
-		if [ $? -ne 0 ]; then _echo "Error: unable to determine Linux release."; return 1; fi
-	fi
-
-	PV_FORMAT="$(getFormat)"
-	if [ $? -ne 0 ]; then _echo "Error: unable to determine package format."; return 1; fi
-
-	_debugln "PV_AUTHKEY: $PV_AUTHKEY, PV_NODEID: $PV_NODEID, PV_DISTRO: $PV_DISTRO, PV_RELEASE: $PV_RELEASE, PV_RELEASEVER: $PV_RELEASEVER, PV_ARCH: $PV_ARCH"
-
-	PV_PFRACs="$(generatePFRACs $PV_DISTRO $PV_RELEASE $PV_ARCH "$PV_COMPONENTS")"
+	PV_PFRACs="$(generatePFRACs "$PV_DISTRO" "$PV_FORMAT" "$PV_RELEASE" "$PV_ARCH" "$PV_COMPONENTS")"
 	if [ $? -ne 0 ]; then
 		_debugln "Creating default PFRAC."
 		PV_PFRACs="$(encode "$PV_DISTRO")_${PV_FORMAT}_${PV_RELEASE}_${PV_ARCH}_default"
@@ -72,7 +71,7 @@ main() {
 		A="$(decode $(echo $PFRAC | awk -F'_' '{print $4}'))"
 		C="$(decode $(echo $PFRAC | awk -F'_' '{print $5}'))"
 
-		URL="https://repo.polyverse.io/register?authKey=$PV_AUTHKEY&nodeID=$PV_NODEID_$PFRAC&nodeName=$PV_NODEID&distro=$PV_DISTRO&project=$P&format=$F&release=$R&arch=$A&component=$C&releasever=$PV_RELEASEVER"
+		URL="https://repo.polyverse.io/register?authKey=$PV_AUTHKEY&nodeID=$PV_NODEID_$PFRAC&nodeName=$PV_NODEID&distro=$PV_DISTRO&project=$P&format=$F&release=$R&arch=$A&component=$C&releasever=$PV_VERSION_ID"
 		_echo "$URL"
 
 		# 'wget --content-on-error -qO- "$URL"' doesn't work reliably across distros
@@ -89,10 +88,9 @@ main() {
 		REPO_FILE_CONTENTS="${REPO_FILE_CONTENTS}${COMPONENT_FILE_PART}\n\n"
 	done
 
-	echo "REPO_FILE_CONTENTS:"
-	echo "$REPO_FILE_CONTENTS"
+	_debugln "REPO_FILE_CONTENTS:"
+	_debugln "$REPO_FILE_CONTENTS"
 
-	PV_FORMAT="$(getFormat $PV_DISTRO)"
 	${PV_FORMAT}_install "$REPO_FILE_CONTENTS"
 	return $?
 }
@@ -141,6 +139,7 @@ parseCommandLine() {
 	PV_COMPONENTS=""
 	PV_DEBUG=""
 	PV_DISTRO=""
+	PV_DRY_RUN=""
 	PV_NODEID=""
 
 	while [ $# -gt 0 ]; do
@@ -169,6 +168,9 @@ parseCommandLine() {
 				shift
 				PV_COMPONENTS="$PV_COMPONENTS $1"
 				;;
+			--dry-run)
+				PV_DRY_RUN="true"
+				;;
 			--debug)
 				PV_DEBUG="true"
 				;;
@@ -195,130 +197,10 @@ getNodeId() {
 		return 0
 	fi
 
-	return 1
-}
-
-getDistro() {
-	# there's usually a line like 'ID=alpine'
-	_DISTRO="$(cat /etc/os-release 2>/dev/null | grep "^ID=" | cut -d '=' -f2 | tr -d '"')"
-	if [ ! -z "${_DISTRO}" ]; then
-		echo "${_DISTRO}"
-		return 0
-	fi
-
-	# centos 6 has a single line. e.g., 'CentOS release 6.10 (Final)'
-	if [ ! -z "$(cat /etc/*-release | grep ^CentOS)" ]; then
-		echo "centos"
-		return 0
-	fi
-
-	# rhel 6 has a single line. e.g., 'Red Hat Enterprise Linux Server release 6.10 (Santiago)'
-	if [ ! -z "$(cat /etc/*-release | grep ^Red)" ]; then
-		echo "rhel"
-		return 0
-	fi
-
-	# unable to determine distro
-	return 1
-}
-
-getRelease() {
-	_DISTRO="$1"
-	_RELEASEVER="$2"
-
-	if [ -z "$_DISTRO" ] || [ -z "$_RELEASEVER" ]; then
-		return 1
-	fi
-
-	case "$_DISTRO" in
-		alpine)
-			# make 3.x vs 3.x.x
-			echo $_RELEASEVER | awk -F'.' '{print $1"."$2}'
-			;;
-		centos|fedora|rhel)
-			# make 7 vs. 7.6
-			echo $_RELEASEVER | awk -F'.' '{print $1}'
-			;;
-		ubuntu)
-			_RELEASE="$(cat /etc/*-release 2>/dev/null | grep "^DISTRIB_CODENAME=" | cut -d '=' -f2 | tr -d '"')"
-			if [ -z "$_RELEASE" ]; then return 1; fi
-
-			echo "$_RELEASE"
-			;;
-		*)
-			echo "$_RELEASEVER"
-			;;
-	esac
-
-	return 0
-}
-
-getReleaseVer() {
-	_RELEASE="$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')"
-	if [ ! -z "$_RELEASE" ]; then
-		echo "$_RELEASE"
-		return 0
-	fi
-
-	# older centos release file example: CentOS release 6.10 (Final)
-	if [ ! -z "$(cat /etc/*-release | grep "^CentOS release")" ]; then
-		cat /etc/*-release | grep "^CentOS release" | head -n 1 | sed 's/.*release //' | awk '{print $1}'
-		return 0
-	fi
-
-	if [ ! -z "$(cat /etc/*-release | grep ^Red)" ]; then
-		cat /etc/*-release | grep ^Red | head -n 1 | sed 's/.*release //' | awk '{print $1}'
-		return 0
-	fi
-
-	return 1
-}
-
-getArch() {
-	# if a value is passed in, then echo it back out.
-	if [ ! -z "$1" ]; then
-		echo "$1"
-		return 0
-	fi
-
-	# on alpine, apk uses the value in this file to determine the arch for constructing the package url
-	if [ -f "/etc/apk/arch" ]; then
-		cat /etc/apk/arch
-		return 0
-	fi
-
-	dpkg --version >/dev/null 2>&1
-	if [ $? -eq 0 ]; then
-		dpkg --print-architecture
-		return $?
-	fi
-
-	uname -m
-	return $?
-}
-
-getFormat() {
-	yum >/dev/null 2>&1
-	if [ $? -ne 127 ]; then
-		echo "rpm"
-		return 0
-	fi
-
-	dnf >/dev/null 2>&1
-	if [ $? -ne 127 ]; then
-		echo "rpm"
-		return 0
-	fi
-
-	apt >/dev/null 2>&1
-	if [ $? -ne 127 ]; then
-		echo "deb"
-		return 0
-	fi
-
-	apk >/dev/null 2>&1
-	if [ $? -ne 127 ]; then
-		echo "apk"
+	# network node hostname
+	_NODEID="$(uname -n 2>/dev/null)"
+	if [ ! -z "$_NODEID" ]; then
+		echo "$_NODEID"
 		return 0
 	fi
 
@@ -326,12 +208,16 @@ getFormat() {
 }
 
 generatePFRACs() {
-	_DISTRO="$1"
-	_RELEASE="$2"
-	_ARCH="$3"
-	_COMPONENTS="$4"
+	if [ $# -ne 5 ]; then
+		_echo "Error: generatePFRACs() missing required arguments."
+		return 1
+	fi
 
-	_FORMAT="$(getFormat $_DISTRO)"
+	_DISTRO="$1"
+	_FORMAT="$2"
+	_RELEASE="$3"
+	_ARCH="$4"
+	_COMPONENTS="$5"
 
 	case $_DISTRO in
 		alpine)
@@ -530,5 +416,7 @@ deb_install() {
 	display_reinstall_cmd "apt-get update && apt-get -y --allow-change-held-packages install --reinstall \$(dpkg --get-selections | awk '{print \$1}')"
 }
 
-main "$@"
-exit $?
+if [ -z "$PV_DEFINE_INCLUDE" ]; then
+	main "$@"
+	exit $?
+fi
