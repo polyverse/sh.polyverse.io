@@ -2,6 +2,9 @@
 
 SHORT_DESCRIPTION="Install Polymorphic Linux"
 
+# ./build.sh will replace GITSHA with actual commit
+export PV_GITSHA=GITSHA
+
 # set the environment variable PV_BASE_URL to test non-prod version
 if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
 
@@ -10,6 +13,8 @@ if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
 #******************************************************************************#
 
 main() {
+	# check a few pre-requisites
+
 	if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
 		_echo "Installation must be performed on a Linux system."
 		return 1
@@ -26,54 +31,43 @@ main() {
 		return 1
 	fi
 
-	# parse command line to set global PV_ variables
+	echo "Polyverse polymorphic version of Linux® install script (commit: $PV_GITSHA)"
+
+	# process command-line which is used to set global PV_ variables
 	parseCommandLine "$@"
 	if [ $? -ne 0 ]; then return 1; fi
 
-	# collect and validate info we need for installation
+	# the only PV_ variable that's required is the authkey
+	if [ -z "$PV_AUTHKEY" ]; then
+		usage
+		return 1
+	fi
 
+	# `curl https://sh.polyverse.io | sh -s info` to collect linux distro details; response looks like:
+	# 
+	# DISTRO=rhel
+	# RELEASE=6
+	# VERSION_ID=6.10
+	# ARCH=x86_64
+	# PACKAGE_MANAGER=yum
+	# FORMAT=rpm
+	# HOSTNAME=6942790f8a5d
+	# 
 	PV_INFO="$(curl -s $PV_BASE_URL | PV_BASE_URL=$PV_BASE_URL sh -s info)"
 	if [ $? -ne 0 ]; then
 		_echo "Unable to determine Linux distribution details. Please contact support@polyverse.io."
 		return 1
 	fi
 
-	if [ -z "$PV_AUTHKEY" ]; then
-		usage
-		return 1
-	fi
+	# set variables based on sh.polyverse.io info output unless already set via command-line
+	export PV_NODEID="$(parseInfoIfNeeded "$PV_NODEID" HOSTNAME "$PV_INFO")"
+	export PV_DISTRO="$(parseInfoIfNeeded "$PV_DISTRO" DISTRO "$PV_INFO")"
+	export PV_FORMAT="$(parseInfoIfNeeded "$PV_FORMAT" FORMAT "$PV_INFO")"
+	export PV_RELEASE="$(parseInfoIfNeeded "$PV_RELEASE" RELEASE "$PV_INFO")"
+	export PV_VERSION_ID="$(parseInfoIfNeeded "$PV_VERSION_ID" VERSION_ID "$PV_INFO")"
+	export PV_ARCH="$(parseInfoIfNeeded "$PV_ARCH" ARCH "$PV_INFO")"
 
-	if [ -z "$PV_NODEID" ]; then
-		PV_NODEID="$(parseInfo HOSTNAME "$PV_INFO")"
-		if [ $? -ne 0 ]; then echo "$PV_NODEID"; return 1; fi
-	fi
-
-	if [ -z "$PV_DISTRO" ]; then
-		PV_DISTRO="$(parseInfo DISTRO "$PV_INFO")"
-		if [ $? -ne 0 ]; then echo "$PV_DISTRO"; return 1; fi
-	fi
-
-	if [ -z "$PV_ARCH" ]; then
-		PV_ARCH="$(parseInfo ARCH "$PV_INFO")"
-		if [ $? -ne 0 ]; then echo "$PV_ARCH"; return 1; fi
-	fi
-
-	if [ -z "$PV_VERSION_ID" ]; then
-		PV_VERSION_ID="$(parseInfo VERSION_ID "$PV_INFO")"
-		if [ $? -ne 0 ]; then echo "$PV_VERSION_ID"; return 1; fi
-	fi
-
-	if [ -z "$PV_RELEASE" ]; then
-		PV_RELEASE="$(parseInfo RELEASE "$PV_INFO")"
-		if [ $? -ne 0 ]; then echo "$PV_RELEASE"; return 1; fi
-	fi
-
-	if [ -z "$PV_FORMAT" ]; then
-		PV_FORMAT="$(parseInfo FORMAT "$PV_INFO")"
-		if [ $? -ne 0 ]; then echo "$PV_FORMAT"; return 1; fi
-	fi
-
-	_debugln "PV_AUTHKEY: $PV_AUTHKEY, PV_NODEID: $PV_NODEID, PV_DISTRO: $PV_DISTRO, PV_RELEASE: $PV_RELEASE, PV_VERSION_ID: $PV_VERSION_ID, PV_ARCH: $PV_ARCH, PV_FORMAT: $PV_FORMAT"
+	_debugln "$(env | grep ^PV_)"
 
 	# generate the default PFRACs for this distro/format/release/arch; usually something like os and updates
 	PV_PFRACs="$(generateDefaultPFRACs "$PV_DISTRO" "$PV_FORMAT" "$PV_RELEASE" "$PV_ARCH")"
@@ -97,7 +91,7 @@ main() {
 		fi
 	fi
 
-	_debugln "PV_PFRACs: $PV_PFRACs"
+	_debugln "PV_PFRACs=$PV_PFRACs"
 
 	for PFRAC in $PV_PFRACs; do
 		P="$(decode $(echo $PFRAC | awk -F'_' '{print $1}'))"
@@ -106,8 +100,8 @@ main() {
 		A="$(decode $(echo $PFRAC | awk -F'_' '{print $4}'))"
 		C="$(decode $(echo $PFRAC | awk -F'_' '{print $5}'))"
 
-		URL="https://repo.polyverse.io/register?authKey=$PV_AUTHKEY&nodeID=$PV_NODEID_$PFRAC&nodeName=$PV_NODEID&distro=$PV_DISTRO&project=$P&format=$F&release=$R&arch=$A&component=$C&releasever=$PV_VERSION_ID&gitsha=GITSHA"
-		_echo "$URL"
+		URL="https://repo.polyverse.io/register?authKey=$PV_AUTHKEY&nodeID=$PV_NODEID_$PFRAC&nodeName=$PV_NODEID&distro=$PV_DISTRO&project=$P&format=$F&release=$R&arch=$A&component=$C&version_id=$PV_VERSION_ID&gitsha=$PV_GITSHA"
+		_debugln "$URL"
 
 		# 'wget --content-on-error -qO- "$URL"' doesn't work reliably across distros
 		COMPONENT_FILE_PART="$(curl -s --insecure --fail -H 'Authorization: $PV_AUTHKEY' "$URL")"
@@ -196,37 +190,27 @@ parseInfoIfNeeded() {
 }
 
 parseCommandLine() {
-	_debugln "parseCommandLine(): \$#: $#, \$@: \"$@\""
 	if [ "$1" = "install" ]; then
 		shift
 	fi
-
-	# initialize globals
-	PV_ARCH=""
-	PV_AUTHKEY=""
-	PV_COMPONENTS=""
-	PV_DEBUG=""
-	PV_DISTRO=""
-	PV_DRY_RUN=""
-	PV_NODEID=""
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--arch)
 				shift
-				PV_ARCH="$1"
+				export PV_ARCH="$1"
 				;;
 			--distro)
 				shift
-				PV_DISTRO="$1"
+				export PV_DISTRO="$1"
 				;;
 			--release)
 				shift
-				PV_RELEASE="$1"
+				export PV_RELEASE="$1"
 				;;
 			--nodeid)
 				shift
-				PV_NODEID="$1"
+				export PV_NODEID="$1"
 				;;
 			--help)
 				usage
@@ -234,19 +218,19 @@ parseCommandLine() {
 				;;
 			--add-component)
 				shift
-				PV_COMPONENTS="$PV_COMPONENTS $1"
+				export PV_COMPONENTS="$PV_COMPONENTS $1"
 				;;
 			--dry-run)
-				PV_DRY_RUN="true"
+				export PV_DRY_RUN="true"
 				;;
 			--debug)
-				PV_DEBUG="true"
+				export PV_DEBUG="true"
 				;;
 			*)
 				if [ -z "$PV_AUTHKEY" ]; then
-					PV_AUTHKEY="$1"
+					export PV_AUTHKEY="$1"
 				elif [ -z "$PV_NODEID" ]; then
-					PV_NODEID="$1"
+					export PV_NODEID="$1"
 				else
 					echo "Error: unexpected argument '$1'."
 					return 1

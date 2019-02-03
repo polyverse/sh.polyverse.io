@@ -34,4 +34,4 @@ cp usage.txt ./out/
 cp -a ./scripts/. ./out/scripts/
 
 # pass gitsha to /register endpoint
-sed -i 's/gitsha=GITSHA/gitsha='$(git rev-parse --verify HEAD | cut -c1-7)'/g' ./out/scripts/install
+sed -i 's/PV_GITSHA=GITSHA/PV_GITSHA='$(git rev-parse --verify HEAD | cut -c1-7)'/g' ./out/scripts/install
