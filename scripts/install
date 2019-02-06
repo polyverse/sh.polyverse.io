@@ -244,7 +244,7 @@ RELEASE="$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2
 CODENAME="$(cat /etc/*-release 2>/dev/null | grep "^DISTRIB_CODENAME=" | cut -d '=' -f2 | tr -d '"')"
 ARCH="$(uname -m)"
 
-if [ "$DISTRO" == "alpine" ] && [ -f "/etc/apk/arch" ]; then
+if [ "$DISTRO" = "alpine" ] && [ -f "/etc/apk/arch" ]; then
 	ARCH="$(cat /etc/apk/arch)"
 fi
 
