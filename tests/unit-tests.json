@@ -9,7 +9,7 @@
 					"PV_X_FORMAT=apk",
 					"PV_X_RELEASE=3.6",
 					"PV_X_ARCH=x86_64",
-					"PV_X_PACKAGE_MANAGER=apk_TODO"
+					"PV_X_PACKAGE_MANAGER=apk"
 				]
 			},
 			{
