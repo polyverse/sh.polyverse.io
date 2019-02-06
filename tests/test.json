@@ -1,0 +1,307 @@
+[
+	{
+		"name":"info",
+		"matrix":[
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.6",
+					"PV_X_DISTRO=alpine",
+					"PV_X_FORMAT=apk",
+					"PV_X_RELEASE=3.6",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=apk"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.7",
+					"PV_X_DISTRO=alpine",
+					"PV_X_FORMAT=apk",
+					"PV_X_RELEASE=3.7",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=apk"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.8",
+					"PV_X_DISTRO=alpine",
+					"PV_X_FORMAT=apk",
+					"PV_X_RELEASE=3.8",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=apk"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=multiarch/alpine:i386-v3.8",
+					"PV_X_DISTRO=alpine",
+					"PV_X_FORMAT=apk",
+					"PV_X_RELEASE=3.8",
+					"PV_X_ARCH=x86",
+					"PV_X_PACKAGE_MANAGER=apk"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=centos:6",
+					"PV_X_DISTRO=centos",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=6",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=yum"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=centos:7",
+					"PV_X_DISTRO=centos",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=7",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=yum"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=debian:7.11-slim",
+					"PV_X_DISTRO=debian",
+					"PV_X_FORMAT=deb",
+					"PV_X_RELEASE=7",
+					"PV_X_ARCH=amd64",
+					"PV_X_PACKAGE_MANAGER=apt-get"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=fedora:23",
+					"PV_X_DISTRO=fedora",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=23",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=dnf"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=fedora:24",
+					"PV_X_DISTRO=fedora",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=24",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=dnf"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=opensuse:42.3",
+					"PV_X_DISTRO=opensuse",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=42.3",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=zypper"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=oraclelinux:6",
+					"PV_X_DISTRO=ol",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=6",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=yum"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=registry.access.redhat.com/rhel6.10",
+					"PV_X_DISTRO=rhel",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=6",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=yum"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=registry.access.redhat.com/rhel7.6",
+					"PV_X_DISTRO=rhel",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=7",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=yum"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=ubuntu:xenial",
+					"PV_X_DISTRO=ubuntu",
+					"PV_X_FORMAT=deb",
+					"PV_X_RELEASE=xenial",
+					"PV_X_ARCH=amd64",
+					"PV_X_PACKAGE_MANAGER=apt"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=ubuntu:bionic",
+					"PV_X_DISTRO=ubuntu",
+					"PV_X_FORMAT=deb",
+					"PV_X_RELEASE=bionic",
+					"PV_X_ARCH=amd64",
+					"PV_X_PACKAGE_MANAGER=apt"
+				]
+			}
+		],
+		"cmd":"docker run -it --rm -v $PWD/..:/opt/pv $PV_IMAGE /opt/pv/scripts/info",
+		"tests":[
+			"! -z \"$(cat $STDOUT | grep ^DISTRO=$PV_X_DISTRO)\"",
+			"! -z \"$(cat $STDOUT | grep ^FORMAT=$PV_X_FORMAT)\"",
+			"! -z \"$(cat $STDOUT | grep ^RELEASE=$PV_X_RELEASE)\"",
+			"! -z \"$(cat $STDOUT | grep ^VERSION_ID=)\"",
+			"! -z \"$(cat $STDOUT | grep ^ARCH=$PV_X_ARCH)\"",
+			"! -z \"$(cat $STDOUT | grep ^PACKAGE_MANAGER=$PV_X_PACKAGE_MANAGER)\"",
+			"$EXIT -eq 0"
+		]
+	},
+	{
+		"name":"info.parseInfo",
+		"source":"../scripts/install",
+		"matrix":[
+			{
+				"comment":"test 'sh -s info' with double-quotes around value",
+				"env":[
+					"PV_TEST_FILE=./info_1.txt",
+					"PV_X_DISTRO=rhel",
+					"PV_X_HOSTNAME=\"foo bar\""
+				]
+			},
+			{
+				"comment":"test 'sh -s info' with no double-quotes with multi-word values",
+				"env":[
+					"PV_TEST_FILE=./info_2.txt",
+					"PV_X_DISTRO=rhel",
+					"PV_X_HOSTNAME=\"foo bar\""
+				]
+			}
+		],
+		"tests":[
+			"\"$(parseInfo DISTRO \"$(cat $PV_TEST_FILE)\")\" == \"$PV_X_DISTRO\"",
+			"\"$(parseInfo HOSTNAME \"$(cat $PV_TEST_FILE)\")\" == \"$PV_X_HOSTNAME\""
+		]
+	},
+	{
+		"name":"info.generateDefaultPFRACs",
+		"source":"../scripts/install",
+		"matrix":[
+			{
+				"env":[
+					"PV_ARGS=\"alpine apk 3.6 x86_64\"",
+					"PV_X_PFRAC=\"alpine_apk_3.6_x86--64_main alpine_apk_3.6_x86--64_community\""
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"alpine apk 3.7 x86_64\"",
+					"PV_X_PFRAC=\"alpine_apk_3.7_x86--64_main alpine_apk_3.7_x86--64_community\""
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"alpine apk 3.8 x86_64\"",
+					"PV_X_PFRAC=\"alpine_apk_3.8_x86--64_main alpine_apk_3.8_x86--64_community\""
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"alpine apk 3.8 x86\"",
+					"PV_X_PFRAC=\"alpine_apk_3.8_x86_main alpine_apk_3.8_x86_community\""
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"centos rpm 6 x86_64\"",
+					"PV_X_PFRAC=\"centos_rpm_6_x86--64_os centos_rpm_6_x86--64_updates\""
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"centos rpm 7 x86_64\"",
+					"PV_X_PFRAC=\"centos_rpm_7_x86--64_os centos_rpm_7_x86--64_updates\""
+				]
+			}
+		],
+		"cmd":"generateDefaultPFRACs $PV_ARGS",
+		"tests":[
+			"\"$(cat $STDOUT)\" == \"$PV_X_PFRAC\"",
+			"$EXIT -eq 0"
+		]
+	},
+	{
+		"name":"info.generateComponentsPFRACs",
+		"source":"../scripts/install",
+		"matrix":[
+			{
+				"env":[
+					"PV_ARGS=\"alpine apk 3.6 x86_64 \"kernel\"\"",
+					"PV_X_PFRAC=\"Error: component 'kernel' not supported on distro 'alpine'.\"",
+					"PV_X_EXIT=1"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"centos rpm 6 x86_64 \"kernel\"\"",
+					"PV_X_PFRAC=\"centos_rpm_6_x86--64_os-kernel centos_rpm_6_x86--64_updates-kernel\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"centos rpm 7 x86_64 \"kernel\"\"",
+					"PV_X_PFRAC=\"centos_rpm_7_x86--64_os-kernel centos_rpm_7_x86--64_updates-kernel\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"fedora rpm 23 x86_64 \"kernel\"\"",
+					"PV_X_PFRAC=\"fedora_rpm_23_x86--64_os-kernel fedora_rpm_23_x86--64_updates-kernel\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"fedora rpm 24 x86_64 \"kernel\"\"",
+					"PV_X_PFRAC=\"fedora_rpm_24_x86--64_os-kernel fedora_rpm_24_x86--64_updates-kernel\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"fedora rpm 25 x86_64 \"kernel\"\"",
+					"PV_X_PFRAC=\"fedora_rpm_25_x86--64_os-kernel fedora_rpm_25_x86--64_updates-kernel\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"ubuntu apt xenial amd64 \"kernel\"\"",
+					"PV_X_PFRAC=\"Error: component 'kernel' not supported on distro 'ubuntu'.\"",
+					"PV_X_EXIT=1"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"ubuntu apt xenial amd64 epel\"",
+					"PV_X_PFRAC=\"Error: unknown component 'epel'.\"",
+					"PV_X_EXIT=1"
+				]
+			}
+		],
+		"cmd":"generateComponentsPFRACs $PV_ARGS",
+		"tests":[
+			"\"$(cat $STDOUT)\" == \"$PV_X_PFRAC\"",
+			"$EXIT -eq $PV_X_EXIT"
+		]
+	}
+]
