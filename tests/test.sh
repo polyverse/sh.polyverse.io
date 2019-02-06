@@ -5,6 +5,10 @@
 # BLOCKS has JOBS; each JOB is an expansion of the matrix
 # JOBS has TESTS, which is an array of tests that are performed on the fully-expanded BUILD->BLOCK->JOB
 
+# set PV_SH_ROOT so it can be used in JSON files to mount into containers, etc.
+PV_TESTS_SH_FILENAME="${BASH_SOURCE[0]}"
+export PV_SH_ROOT="$( cd "$( dirname "$PV_TESTS_SH_FILENAME" )" && cd .. && pwd )"
+
 PV_FMT_BOLD=$(tput bold)
 PV_FMT_NORMAL=$(tput sgr0)
 PV_FMT_RED=$(tput setaf 1)
@@ -16,15 +20,26 @@ main() {
 
 	parseCommandLine "$@"
 	if [ $? -ne 0 ]; then
-		exit 1
+		return 1
 	fi
 
+	if [ -z "$PV_TEST_JSON_FILE" ]; then
+		(>&2 echo "Error: missing required --json argument.")
+		return 1
+	fi
+
+	if [ ! -f "$PV_TEST_JSON_FILE" ]; then
+		(>&2 echo "Error: file '$PV_TEST_JSON_FILE' not found.")
+		return 1
+	fi
+
+	echo "PV_BASE_URL: $PV_BASE_URL"
 	echo "PV_BLOCK_FILTER: $PV_BLOCK_FILTER"
 
 	BLOCK_INDEX=0
-	while [ $BLOCK_INDEX -lt $(cat test.json | jq '.|length') ]; do
+	while [ $BLOCK_INDEX -lt $(cat $PV_TEST_JSON_FILE | jq '.|length') ]; do
 		_debugln "BLOCK_INDEX: $BLOCK_INDEX"
-		BLOCK_JSON="$(cat test.json | jq '.['$BLOCK_INDEX']')"
+		BLOCK_JSON="$(cat $PV_TEST_JSON_FILE | jq '.['$BLOCK_INDEX']')"
 		let BLOCK_INDEX=BLOCK_INDEX+1
 
 		_debugln "BLOCK_INDEX: $BLOCK_INDEX"
@@ -40,6 +55,7 @@ main() {
 		echo "Executing test block '$BLOCK_NAME'..."
 
 		if [ ! -z "$BLOCK_SOURCE" ]; then
+			BLOCK_SOURCE="$(eval "echo $BLOCK_SOURCE")"
 			_echo "+ source $BLOCK_SOURCE"
 			PV_DEFINE_INCLUDE="true"
 			source $BLOCK_SOURCE
@@ -66,10 +82,19 @@ main() {
 
 			_debugln "$(env | grep ^PV_)"
 
+			BEFORE_TEST_INDEX=0
+			BEFORE_TEST_LENGTH="$(echo "$BLOCK_JSON" | jq -r '.before_test | length')"
+			while [ $BEFORE_TEST_INDEX -lt $BEFORE_TEST_LENGTH ]; do
+				BEFORE_TEST_CMD="$(echo "$BLOCK_JSON" | jq -r '.before_test['$BEFORE_TEST_INDEX']')"
+				echo "+ $BEFORE_TEST_CMD"
+				eval "$BEFORE_TEST_CMD"
+				let BEFORE_TEST_INDEX=BEFORE_TEST_INDEX+1
+			done
+
 			PV_CMD="$(echo "$BLOCK_JSON" | jq -r '.cmd // empty')"
 			if [ ! -z "$PV_CMD" ]; then
 				STDOUT=$(mktemp)
-				eval "$PV_CMD" | tr -d '\r' > $STDOUT
+				eval "$PV_CMD" 2>/dev/null | tr -d '\r' > $STDOUT
 				EXIT="${PIPESTATUS[0]}"
 
 				(>&2 echo "+ $PV_CMD > \$STDOUT [\$EXIT: $EXIT]")
@@ -98,6 +123,15 @@ main() {
 				fi
 				(>&2 echo -e "+++ [[ "$(eval "echo \"$PV_TEST\"")" ]] [$RESULT]")
 			done
+
+			AFTER_TEST_INDEX=0
+			AFTER_TEST_LENGTH="$(echo "$BLOCK_JSON" | jq -r '.after_test | length')"
+			while [ $AFTER_TEST_INDEX -lt $AFTER_TEST_LENGTH ]; do
+				AFTER_TEST_CMD="$(echo "$BLOCK_JSON" | jq -r '.after_test['$AFTER_TEST_INDEX']')"
+				echo "+ $AFTER_TEST_CMD"
+				eval "$AFTER_TEST_CMD"
+				let AFTER_TEST_INDEX=AFTER_TEST_INDEX+1
+			done
 		done
 	done
 
@@ -109,6 +143,10 @@ main() {
 parseCommandLine() {
 	while [ $# -gt 0 ]; do
 		case "$1" in
+			--json)
+				shift
+				export PV_TEST_JSON_FILE="$1"
+				;;
 			--block)
 				shift
 				(>&2 echo "Setting PV_BLOCK_FILTER=\"$1\"")

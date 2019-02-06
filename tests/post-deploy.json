@@ -1,0 +1,32 @@
+[
+	{
+		"name":"install",
+		"matrix":[
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.8",
+					"PV_BEFORE_TEST_CMD=\"apk update && apk add curl\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=centos:7",
+					"PV_BEFORE_TEST_CMD=\"\"",
+					"PV_X_EXIT=0"
+				]
+			}
+		],
+		"before_test":[
+			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
+			"docker exec -t $CONTAINER_ID sh -c \"$PV_BEFORE_TEST_CMD\""
+		],
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"curl $PV_BASE_URL | PV_BASE_URL=$PV_BASE_URL sh -s install hwTgPAGCyNGYDmiRAHLcdhBl3 --debug\"",
+		"tests":[
+			"$EXIT -eq $PV_X_EXIT"
+		],
+		"after_test":[
+			"docker rm -fv $CONTAINER_ID"
+		]
+	}
+]

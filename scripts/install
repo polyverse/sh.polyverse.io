@@ -2,8 +2,12 @@
 
 SHORT_DESCRIPTION="Install Polymorphic Linux"
 
-# ./build.sh will replace GITSHA with actual commit
+# ./build.sh will replace GITSHA with actual commit sha
 export PV_GITSHA=GITSHA
+
+export PV_KEY_SHA256SUM_APK=d0959d896ef81e325d631c6b46905108a71c3c2e017b7327328a2c3347580b6f
+export PV_KEY_SHA256SUM_DEB=c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c
+export PV_KEY_SHA256SUM_RPM=fc113ae1cbf1e0ddc74aaca659012e887599cccccdb19294f65d94d4c1048422
 
 # set the environment variable PV_BASE_URL to test non-prod version
 if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
@@ -31,7 +35,7 @@ main() {
 		return 1
 	fi
 
-	echo "Polyverse polymorphic version of Linux® install script (commit: $PV_GITSHA)"
+	_echo "Polyverse polymorphic version of Linux® install script (commit: $PV_GITSHA)"
 
 	# process command-line which is used to set global PV_ variables
 	parseCommandLine "$@"
@@ -52,8 +56,8 @@ main() {
 	# PACKAGE_MANAGER=yum
 	# FORMAT=rpm
 	# HOSTNAME=6942790f8a5d
-	# 
-	PV_INFO="$(curl -s $PV_BASE_URL | PV_BASE_URL=$PV_BASE_URL sh -s info)"
+	#
+	PV_INFO="$(curl -s $PV_BASE_URL/main.sh | PV_BASE_URL=$PV_BASE_URL sh -s info)"
 	if [ $? -ne 0 ]; then
 		_echo "Unable to determine Linux distribution details. Please contact support@polyverse.io."
 		return 1
@@ -68,6 +72,11 @@ main() {
 	export PV_ARCH="$(parseInfoIfNeeded "$PV_ARCH" ARCH "$PV_INFO")"
 
 	_debugln "$(env | grep ^PV_)"
+
+	if [ ! -z "$PV_INSTALL_KEY_ONLY" ]; then
+		installPolyverseKey "$PV_FORMAT" "$PV_INSTALL_KEY_ONLY"
+		return $?
+	fi
 
 	# generate the default PFRACs for this distro/format/release/arch; usually something like os and updates
 	PV_PFRACs="$(generateDefaultPFRACs "$PV_DISTRO" "$PV_FORMAT" "$PV_RELEASE" "$PV_ARCH")"
@@ -141,11 +150,9 @@ _debugln() {
 usage() {
 	cat >&2 <<-EOF
 
-	Install Polymorphic Linux.
-
 	Usage:
 
-	  curl https://sh.polyverse.io | sh -s install [<options>] <authkey> [<nodeid>]
+	   curl https://sh.polyverse.io | sh -s install <authkey> [<options>]
 
 	Options:
 
@@ -204,6 +211,10 @@ parseCommandLine() {
 				shift
 				export PV_DISTRO="$1"
 				;;
+			--format)
+				shift
+				export PV_FORMAT="$1"
+				;;
 			--release)
 				shift
 				export PV_RELEASE="$1"
@@ -222,6 +233,10 @@ parseCommandLine() {
 				;;
 			--dry-run)
 				export PV_DRY_RUN="true"
+				;;
+			--install-key)
+				shift
+				export PV_INSTALL_KEY_ONLY="$1"
 				;;
 			--debug)
 				export PV_DEBUG="true"
@@ -350,6 +365,82 @@ display_reinstall_cmd() {
 	echo
 	echo "If you have any questions, you can reach us at support@polyverse.io."
 	echo
+}
+
+installPolyverseKey() {
+	_FORMAT="$1"
+	_KEY_SHA256SUM="$2"
+
+	_debugln "installPolyverseKey() ${_FORMAT} ${_KEY_SHA256SUM}"
+
+	case "${_KEY_SHA256SUM}" in
+		d0959d896ef81e325d631c6b46905108a71c3c2e017b7327328a2c3347580b6f)
+			if [ "${_FORMAT}" != "apk" ]; then
+				echo "Error: Key with sha256sum '${_KEY_SHA256SUM}' is only for apk-based package management systems: ${_FORMAT}."
+				return 1
+			fi
+			_KEY_URL="https://repo.polyverse.io/config/apk/3/key"
+			_KEY_LOCATION="/etc/apk/keys/support@polyverse.io-5992017d.rsa.pub"
+			;;
+		*)
+			echo "Error: Unknown key with sha256sun '${_KEY_SHA256SUM}'."
+			return 1
+			;;
+	esac
+
+	_debugln "installPolyverseKey() _FORMAT: ${_FORMAT}, _KEY_URL: ${_KEY_URL}, _KEY_LOCATION: ${_KEY_LOCATION}"
+
+	case "${_FORMAT}" in
+		apk)
+			_KEY_LOCATION="/etc/apk/keys/support@polyverse.io-5992017d.rsa.pub"
+			curl -s https://repo.polyverse.io/config/apk/3/key -o "${_KEY_LOCATION}"
+			if [ $? -ne 0 ]; then
+				echo "Error: encountered issue downloading/installing Polyverse key."
+				return 1
+			fi
+
+			_SHA256SUM="$(sha256sum "${_KEY_LOCATION}" | awk '{print $1}')"
+			if [ $? -ne 0 ]; then
+				echo "Error: encountered issue calculating sha256sum of key."
+				return 1
+			fi
+
+			if [ "$_SHA256SUM" != "${_KEY_SHA256SUM}" ]; then
+				echo "Error: sha256sum mismatch. Expecting '${_KEY_SHA256SUM}' but got '$_SHA256SUM'. Please contact support@polyverse.io."
+				return 1
+			fi
+
+			echo "${_SHA256SUM}"
+			return 0
+			;;
+		deb)
+			echo "TBI"
+			_SHA256SUM="$(apt-key export 067A5E87 2>/dev/null | sha256sum | awk '{print $1}')"
+			
+			return 0
+			;;
+		rpm)
+			_KEY_LOCATION="/etc/pki/RPM-GPG-KEY-Polyverse"
+			curl -s https://repo.polyverse.io/config/rpm/7/key -o "${_KEY_LOCATION}"
+			if [ $? -ne 0 ]; then
+				echo "Error: encountered issue downloading/installing Polyverse key."⏎
+				return 1
+			fi
+
+			_SHA256SUM="$(sha256sum "${_KEY_LOCATION}" | awk '{print $1}')"
+			if [ $? -ne 0 ]; then
+				echo "Error: encountered issue calculating sha256sum of key."
+				return 1
+			fi
+
+			echo "${_SHA256SUM}"
+			return 0
+			;;
+		*)
+			echo "Error: installPolyverseKey() does not support package format '${_FORMAT}'."
+			return 1
+			;;
+	esac
 }
 
 apk_install() {
