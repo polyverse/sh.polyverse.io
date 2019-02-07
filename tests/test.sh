@@ -9,7 +9,9 @@
 PV_TESTS_SH_FILENAME="${BASH_SOURCE[0]}"
 export PV_SH_ROOT="$( cd "$( dirname "$PV_TESTS_SH_FILENAME" )" && cd .. && pwd )"
 
-export PV_BASE_URL="http://git-sh.polyverse.io-$(git rev-parse --abbrev-ref HEAD).s3-website-us-west-2.amazonaws.com"
+if [ -z "$PV_BASE_URL" ]; then
+	export PV_BASE_URL="https://sh.polyverse.io"
+fi
 
 PV_FMT_BOLD=$(tput bold)
 PV_FMT_NORMAL=$(tput sgr0)
