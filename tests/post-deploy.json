@@ -5,7 +5,7 @@
 			{
 				"env":[
 					"PV_IMAGE=alpine:3.8",
-					"PV_BEFORE_TEST_CMD=\"apk update && apk add curl\"",
+					"PV_BEFORE_TEST_CMD=\"apk update >/dev/null 2>&1 && apk add curl >/dev/null 2>&1\"",
 					"PV_X_EXIT=0"
 				]
 			},
@@ -15,17 +15,25 @@
 					"PV_BEFORE_TEST_CMD=\"\"",
 					"PV_X_EXIT=0"
 				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=ubuntu:xenial",
+					"PV_BEFORE_TEST_CMD=\"apt update -y >/dev/null 2>&1 && apt install -y curl >/dev/null 2>&1\"",
+					"PV_X_EXIT=0"
+				]
 			}
 		],
 		"before_test":[
 			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
 			"docker exec -t $CONTAINER_ID sh -c \"$PV_BEFORE_TEST_CMD\""
 		],
-		"cmd":"docker exec -t $CONTAINER_ID sh -c \"curl $PV_BASE_URL | PV_BASE_URL=$PV_BASE_URL sh -s install hwTgPAGCyNGYDmiRAHLcdhBl3 --debug\"",
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"cat /opt/pv/scripts/install | PV_BASE_URL=$PV_BASE_URL sh -s install hwTgPAGCyNGYDmiRAHLcdhBl3 --debug\"",
 		"tests":[
 			"$EXIT -eq $PV_X_EXIT"
 		],
 		"after_test":[
+			"cat $STDOUT",
 			"docker rm -fv $CONTAINER_ID"
 		]
 	}

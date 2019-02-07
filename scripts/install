@@ -73,10 +73,14 @@ main() {
 
 	_debugln "$(env | grep ^PV_)"
 
-	if [ ! -z "$PV_INSTALL_KEY_ONLY" ]; then
-		installPolyverseKey "$PV_FORMAT" "$PV_INSTALL_KEY_ONLY"
-		return $?
+	RESULT="$(getKeyInstallationInfo --authkey $PV_AUTHKEY --nodeid $PV_NODEID --distro $PV_DISTRO --format $PV_FORMAT --release $PV_RELEASE --arch $PV_ARCH)"
+	_debugln "RESULT: $RESULT"
+	if [ $? -eq 0 ]; then
+		export PV_KEY_SHA256SUM="$(echo "$RESULT" | awk '{print $1}')"
+		export PV_KEY_URL="$(echo "$RESULT" | awk '{print $2}')"
+		export PV_KEY_LOCATION="$(echo "$RESULT" | awk '{print $3}')"
 	fi
+	_debugln "PV_KEY_SHA256SUM: $PV_KEY_SHA256SUM, PV_KEY_URL: $PV_KEY_URL, PV_KEY_LOCATION: $PV_KEY_LOCATION"
 
 	# generate the default PFRACs for this distro/format/release/arch; usually something like os and updates
 	PV_PFRACs="$(generateDefaultPFRACs "$PV_DISTRO" "$PV_FORMAT" "$PV_RELEASE" "$PV_ARCH")"
@@ -194,6 +198,7 @@ parseInfoIfNeeded() {
 	fi
 
 	parseInfo "${_KEY}" "${_INFO}"
+	return $?
 }
 
 parseCommandLine() {
@@ -234,10 +239,6 @@ parseCommandLine() {
 			--dry-run)
 				export PV_DRY_RUN="true"
 				;;
-			--install-key)
-				shift
-				export PV_INSTALL_KEY_ONLY="$1"
-				;;
 			--debug)
 				export PV_DEBUG="true"
 				;;
@@ -253,6 +254,119 @@ parseCommandLine() {
 		esac
 		shift
 	done
+
+	return 0
+}
+
+getKeyInstallationInfo() {
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--authkey)
+				shift
+				_PV_AUTHKEY="$1"
+				;;
+			--nodeid)
+				shift
+				_PV_NODID="$1"
+				;;
+			--distro)
+				shift
+				_PV_DISTRO="$1"
+				;;
+			--format)
+				shift
+				_PV_FORMAT="$1"
+				;;
+			--release)
+				shift
+				_PV_RELEASE="$1"
+				;;
+			--arch)
+				shift
+				_PV_ARCH="$1"
+				;;
+			*)
+				echo "Error: unhandled getKeyInstallationInfo() argument '$1'."
+				return 1
+				;;
+		esac
+		shift
+	done
+
+	if [ -z "$_PV_FORMAT" ]; then
+		echo "Error: getKeyInstallationInfo() requires the --format argument."
+		return 1
+	fi
+
+	case "$_PV_FORMAT" in
+		apk)
+			_KEY_SHA256SUM="d0959d896ef81e325d631c6b46905108a71c3c2e017b7327328a2c3347580b6f"
+			_KEY_URL="https://repo.polyverse.io/config/apk/3/key"
+			_KEY_INSTALL_LOCATION="/etc/apk/keys/support@polyverse.io-5992017d.rsa.pub"
+			;;
+		deb)
+			_KEY_SHA256SUM="c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c"
+			_KEY_URL="http://git-sh.polyverse.io-kernel.s3-website-us-west-2.amazonaws.com/keys/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c"
+			_KEY_INSTALL_LOCATION="/etc/apt/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c"
+			;;
+		rpm)
+			_KEY_SHA256SUM="fc113ae1cbf1e0ddc74aaca659012e887599cccccdb19294f65d94d4c1048422"
+			_KEY_URL="https://repo.polyverse.io/config/rpm/7/key"
+			_KEY_INSTALL_LOCATION="/etc/pki/rpm-gpg/RPM-GPG-KEY-Polyverse"
+			;;
+		*)
+			echo "Error: getKeyInstallationInfo() doesn't currently support format '${_PV_FORMAT}'."
+			return 1
+			;;
+	esac
+
+	echo "$_KEY_SHA256SUM ${_KEY_URL} ${_KEY_INSTALL_LOCATION}"
+	return 0
+}
+
+downloadAndInstallKey() {
+	_FORMAT="$1"
+	_KEY_SHA256SUM="$2"
+	_KEY_URL="$3"
+	_KEY_INSTALL_LOCATION="$4"
+
+	if [ $# -ne 4 ]; then
+		echo "Error: downloadAndInstallKey() requires 4 arguments but received '$#'."
+		return 1
+	fi
+
+	curl -s --fail ${_KEY_URL} -o ${_KEY_INSTALL_LOCATION}
+	if [ $? -ne 0 ]; then
+		echo "Error: 'curl ${_KEY_URL} -o ${_KEY_INSTALL_LOCATION}' returned non-zero."
+		return 1
+	fi
+
+	_CHECK_SHA256SUM="$(sha256sum ${_KEY_INSTALL_LOCATION} | awk '{print $1}')"
+	if [ "${_CHECK_SHA256SUM}" != "${_KEY_SHA256SUM}" ]; then
+		echo "Error: sha256sum of '${_KEY_INSTALL_LOCATION}' is '${_CHECK_SHA256SUM}'; expecting '${_KEY_SHA256SUM}'."
+		return 1
+	fi
+
+	case "${_FORMAT}" in
+		apk|rpm)
+			# do nothing
+			;;
+		deb)
+			apt-key add ${_KEY_INSTALL_LOCATION} >/dev/null 2>&1
+			if [ $? -ne 0 ]; then
+				echo "Error: 'apt-key add ${_KEY_INSTALL_LOCATION} returned non-zero."
+				return 1
+			fi
+			if [ -z "$(apt-key list | grep Polyverse)" ]; then
+				echo "Error: 'apt-key list' doesn't show a key from Polyverse."
+				return 1
+			fi
+			;;
+		*)
+			echo "Error: downloadAndInstallKey() doesn't support format '${_FORMAT}'."
+			return 1
+			;;
+	esac
 
 	return 0
 }

@@ -31,6 +31,7 @@ mkdir -p out/scripts
 
 cp main.sh ./out/
 cp usage.txt ./out/
+cp -a ./keys/. ./out/keys/
 cp -a ./scripts/. ./out/scripts/
 
 # pass gitsha to /register endpoint

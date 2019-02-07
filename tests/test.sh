@@ -9,6 +9,8 @@
 PV_TESTS_SH_FILENAME="${BASH_SOURCE[0]}"
 export PV_SH_ROOT="$( cd "$( dirname "$PV_TESTS_SH_FILENAME" )" && cd .. && pwd )"
 
+export PV_BASE_URL="http://git-sh.polyverse.io-$(git rev-parse --abbrev-ref HEAD).s3-website-us-west-2.amazonaws.com"
+
 PV_FMT_BOLD=$(tput bold)
 PV_FMT_NORMAL=$(tput sgr0)
 PV_FMT_RED=$(tput setaf 1)
@@ -32,9 +34,6 @@ main() {
 		(>&2 echo "Error: file '$PV_TEST_JSON_FILE' not found.")
 		return 1
 	fi
-
-	echo "PV_BASE_URL: $PV_BASE_URL"
-	echo "PV_BLOCK_FILTER: $PV_BLOCK_FILTER"
 
 	BLOCK_INDEX=0
 	while [ $BLOCK_INDEX -lt $(cat $PV_TEST_JSON_FILE | jq '.|length') ]; do

@@ -165,7 +165,7 @@
 		]
 	},
 	{
-		"name":"info.parseInfo",
+		"name":"install.parseInfo",
 		"source":"$PV_SH_ROOT/scripts/install",
 		"matrix":[
 			{
@@ -191,7 +191,56 @@
 		]
 	},
 	{
-		"name":"install.installPolyverseKey",
+		"name":"install.getKeyInstallationInfo",
+		"matrix":[
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.8",
+					"PV_FORMAT=apk",
+					"PV_X_STDOUT=\"d0959d896ef81e325d631c6b46905108a71c3c2e017b7327328a2c3347580b6f https://repo.polyverse.io/config/apk/3/key /etc/apk/keys/support@polyverse.io-5992017d.rsa.pub\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=centos:7",
+					"PV_FORMAT=rpm",
+					"PV_X_STDOUT=\"fc113ae1cbf1e0ddc74aaca659012e887599cccccdb19294f65d94d4c1048422 https://repo.polyverse.io/config/rpm/7/key /etc/pki/rpm-gpg/RPM-GPG-KEY-Polyverse\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=ubuntu:xenial",
+					"PV_FORMAT=deb",
+					"PV_X_STDOUT=\"c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c http://git-sh.polyverse.io-kernel.s3-website-us-west-2.amazonaws.com/keys/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c /etc/apt/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.8",
+					"PV_FORMAT=tar",
+					"PV_X_STDOUT=\"Error: getKeyInstallationInfo() doesn't currently support format 'tar'.\"",
+					"PV_X_EXIT=1"
+				]
+			}
+		],
+		"before_test":[
+			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
+			"docker exec -t $CONTAINER_ID sh -c \"$PV_BEFORE_TEST_CMD\""
+		],
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/install getKeyInstallationInfo --format $PV_FORMAT\"",
+		"tests":[
+			"\"$(cat $STDOUT)\" == \"$PV_X_STDOUT\"",
+			"$EXIT -eq $PV_X_EXIT"
+		],
+		"after_test":[
+			"docker rm -fv $CONTAINER_ID"
+		]
+	},
+	{
+		"name":"install.downloadAndInstallKey",
 		"matrix":[
 			{
 				"env":[
@@ -199,6 +248,45 @@
 					"PV_IMAGE=alpine:3.8",
 					"PV_FORMAT=apk",
 					"PV_KEY_SHA256SUM=d0959d896ef81e325d631c6b46905108a71c3c2e017b7327328a2c3347580b6f",
+					"PV_KEY_URL=https://repo.polyverse.io/config/apk/3/key",
+					"PV_KEY_LOCATION=/etc/apk/keys/support@polyverse.io-5992017d.rsa.pub",
+					"PV_X_STDOUT=\"\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_BEFORE_TEST_CMD=\"apk update >/dev/null 2>&1 && apk add curl >/dev/null 2>&1\"",
+					"PV_IMAGE=alpine:3.8",
+					"PV_FORMAT=foo",
+					"PV_KEY_SHA256SUM=d0959d896ef81e325d631c6b46905108a71c3c2e017b7327328a2c3347580b6f",
+					"PV_KEY_URL=https://repo.polyverse.io/config/apk/3/key",
+					"PV_KEY_LOCATION=/etc/apk/keys/support@polyverse.io-5992017d.rsa.pub",
+					"PV_X_STDOUT=\"Error: downloadAndInstallKey() doesn't support format '$PV_FORMAT'.\"",
+					"PV_X_EXIT=1"
+				]
+			},
+			{
+				"env":[
+					"PV_BEFORE_TEST_CMD=\"apt update -y >/dev/null 2>&1 && apt install -y curl >/dev/null 2>&1\"",
+					"PV_IMAGE=ubuntu:xenial",
+					"PV_FORMAT=deb",
+					"PV_KEY_SHA256SUM=c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c",
+					"PV_KEY_URL=http://git-sh.polyverse.io-kernel.s3-website-us-west-2.amazonaws.com/keys/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c",
+					"PV_KEY_LOCATION=/etc/apt/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c",
+					"PV_X_STDOUT=\"\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_BEFORE_TEST_CMD=\"\"",
+					"PV_IMAGE=centos:6",
+					"PV_FORMAT=rpm",
+					"PV_KEY_SHA256SUM=fc113ae1cbf1e0ddc74aaca659012e887599cccccdb19294f65d94d4c1048422",
+					"PV_KEY_URL=https://repo.polyverse.io/config/rpm/7/key",
+					"PV_KEY_LOCATION=/etc/pki/rpm-gpg/RPM-GPG-KEY-Polyverse",
+					"PV_X_STDOUT=\"\"",
 					"PV_X_EXIT=0"
 				]
 			}
@@ -207,9 +295,9 @@
 			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
 			"docker exec -t $CONTAINER_ID sh -c \"$PV_BEFORE_TEST_CMD\""
 		],
-		"cmd":"docker exec -t $CONTAINER_ID sh -c \"cd /opt/pv/tests; ./remote.sh ../scripts/install installPolyverseKey $PV_FORMAT $PV_KEY_SHA256SUM\"",
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/install downloadAndInstallKey $PV_FORMAT $PV_KEY_SHA256SUM $PV_KEY_URL $PV_KEY_LOCATION\"",
 		"tests":[
-			"\"$(cat $STDOUT)\" == \"$PV_KEY_SHA256SUM\"",
+			"\"$(cat $STDOUT)\" = \"$PV_X_STDOUT\"",
 			"$EXIT -eq $PV_X_EXIT"
 		],
 		"after_test":[
