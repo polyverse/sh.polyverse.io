@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 cat docs/header.txt | grep -v ^# > usage.txt
 
