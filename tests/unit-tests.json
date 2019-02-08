@@ -289,6 +289,19 @@
 					"PV_X_STDOUT=\"\"",
 					"PV_X_EXIT=0"
 				]
+			},
+			{
+				"comment":"test empty arguments",
+				"env":[
+					"PV_BEFORE_TEST_CMD=\"\"",
+					"PV_IMAGE=centos:6",
+					"PV_FORMAT=rpm",
+					"PV_KEY_SHA256SUM=",
+					"PV_KEY_URL=",
+					"PV_KEY_LOCATION=",
+					"PV_X_STDOUT=\"Error: downloadAndInstallKey() requires 4 arguments but received '1'.\"",
+					"PV_X_EXIT=1"
+				]
 			}
 		],
 		"before_test":[
@@ -305,7 +318,7 @@
 		]
 	},
 	{
-		"name":"info.generateDefaultPFRACs",
+		"name":"install.generateDefaultPFRACs",
 		"source":"$PV_SH_ROOT/scripts/install",
 		"matrix":[
 			{
@@ -348,6 +361,29 @@
 					"PV_ARGS=\"centos rpm 7 x86_64\"",
 					"PV_X_PFRAC=\"centos_rpm_7_x86--64_os centos_rpm_7_x86--64_updates\"",
 					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"ubuntu deb xenial amd64\"",
+					"PV_X_PFRAC=\"ubuntu_deb_xenial_binary--amd64_main ubuntu_deb_xenial-updates_binary--amd64_main ubuntu_deb_xenial-security_binary--amd64_main\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"comment":"test missing arguments",
+				"env":[
+					"PV_ARGS=",
+					"PV_X_PFRAC=\"Error: generateDefaultPFRACs() missing required arguments.\"",
+					"PV_X_EXIT=1"
+				]
+			},
+			{
+				"comment":"test empty argument",
+				"env":[
+					"PV_ARGS=\"centos \"\" 6 x86_64\"",
+					"PV_X_PFRAC=\"Error: generateDefaultPFRACs() missing required arguments.\"",
+					"PV_X_EXIT=1"
 				]
 			},
 			{
@@ -429,6 +465,45 @@
 		"cmd":"generateComponentsPFRACs $PV_ARGS",
 		"tests":[
 			"\"$(cat $STDOUT)\" == \"$PV_X_PFRAC\"",
+			"$EXIT -eq $PV_X_EXIT"
+		]
+	},
+	{
+		"name":"install.registerPFRAC",
+		"source":"$PV_SH_ROOT/scripts/install",
+		"matrix":[
+			{
+				"env":[
+					"PV_ARGS=\"--authkey hwTgPAGCyNGYDmiRAHLcdhBl3 --commitsha 1234abcd --distro alpine --keysha d0959d896ef81e325d631c6b46905108a71c3c2e017b7327328a2c3347580b6f --nodeid unit-test --pfrac alpine_apk_3.8_x86--64_main --versionid 3.8.1\"",
+					"PV_X_GREP=\"^https://alpine:.*@repo\\.polyverse\\.io/apk/alpine/3\\.8/main\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"--authkey hwTgPAGCyNGYDmiRAHLcdhBl3 --commitsha 1234abcd --distro centos --keysha fc113ae1cbf1e0ddc74aaca659012e887599cccccdb19294f65d94d4c1048422 --nodeid unit-test --pfrac centos_rpm_6_x86--64_os --versionid 6.10\"",
+					"PV_X_GREP=\"^baseurl=https://polyverse_customer:.*@repo\\.polyverse\\.io/rpm/centos/6/os/x86_64\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"--authkey hwTgPAGCyNGYDmiRAHLcdhBl3 --commitsha 1234abcd --distro ubuntu --keysha c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c --nodeid unit-test --pfrac ubuntu_deb_xenial_binary--amd64_main --versionid 16.04\"",
+					"PV_X_GREP=\"^deb https://ubuntu:.*@repo\\.polyverse\\.io/deb/ubuntu/xenial/binary_amd64 main/\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"--authkey hwTgPAGCyNGYDmiRAHLcdhBl3 --commitsha 1234abcd --distro ol --keysha 0123456789 --nodeid a1b2c3 --pfrac ol_rpm_6_x86--64_default --versionid 6\"",
+					"PV_X_GREP=\"^Registration error: We don't currently support 'default' for ol 6.\"",
+					"PV_X_EXIT=1"
+				]
+			}
+		],
+		"cmd":"registerPFRAC $PV_ARGS",
+		"tests":[
+			"! -z \"$(cat $STDOUT | grep \"$PV_X_GREP\")\"",
 			"$EXIT -eq $PV_X_EXIT"
 		]
 	}

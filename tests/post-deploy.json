@@ -25,7 +25,7 @@
 			}
 		],
 		"before_test":[
-			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
+			"CONTAINER_ID=\"$(docker run --name post-deploy -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
 			"docker exec -t $CONTAINER_ID sh -c \"$PV_BEFORE_TEST_CMD\""
 		],
 		"cmd":"docker exec -t $CONTAINER_ID sh -c \"cat /opt/pv/scripts/install | PV_BASE_URL=$PV_BASE_URL sh -s install hwTgPAGCyNGYDmiRAHLcdhBl3 --debug\"",

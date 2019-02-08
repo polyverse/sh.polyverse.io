@@ -17,7 +17,7 @@ if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
 #******************************************************************************#
 
 main() {
-	# check a few pre-requisites
+	# check a few pre-requisites; script will exit if they're not met.
 
 	if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
 		_echo "Installation must be performed on a Linux system."
@@ -41,7 +41,7 @@ main() {
 	parseCommandLine "$@"
 	if [ $? -ne 0 ]; then return 1; fi
 
-	# the only PV_ variable that's required is the authkey
+	# the only PV_ variable that's required at this point is the authkey
 	if [ -z "$PV_AUTHKEY" ]; then
 		usage
 		return 1
@@ -71,16 +71,16 @@ main() {
 	export PV_VERSION_ID="$(parseInfoIfNeeded "$PV_VERSION_ID" VERSION_ID "$PV_INFO")"
 	export PV_ARCH="$(parseInfoIfNeeded "$PV_ARCH" ARCH "$PV_INFO")"
 
-	_debugln "$(env | grep ^PV_)"
-
 	RESULT="$(getKeyInstallationInfo --authkey $PV_AUTHKEY --nodeid $PV_NODEID --distro $PV_DISTRO --format $PV_FORMAT --release $PV_RELEASE --arch $PV_ARCH)"
-	_debugln "RESULT: $RESULT"
-	if [ $? -eq 0 ]; then
-		export PV_KEY_SHA256SUM="$(echo "$RESULT" | awk '{print $1}')"
-		export PV_KEY_URL="$(echo "$RESULT" | awk '{print $2}')"
-		export PV_KEY_LOCATION="$(echo "$RESULT" | awk '{print $3}')"
+	if [ $? -ne 0 ]; then
+		# if getKeyInstallationInfo() returned non-zero, display the error and empty PV_RESULT.
+		# this also means that the subsequent echo/awk commands to set the export variables will result in no value
+		_echo "$RESULT"
+		RESULT=""
 	fi
-	_debugln "PV_KEY_SHA256SUM: $PV_KEY_SHA256SUM, PV_KEY_URL: $PV_KEY_URL, PV_KEY_LOCATION: $PV_KEY_LOCATION"
+	export PV_KEY_SHA256SUM="$(echo "$RESULT" | awk '{print $1}')"
+	export PV_KEY_URL="$(echo "$RESULT" | awk '{print $2}')"
+	export PV_KEY_LOCATION="$(echo "$RESULT" | awk '{print $3}')"
 
 	# generate the default PFRACs for this distro/format/release/arch; usually something like os and updates
 	PV_PFRACs="$(generateDefaultPFRACs "$PV_DISTRO" "$PV_FORMAT" "$PV_RELEASE" "$PV_ARCH")"
@@ -104,26 +104,12 @@ main() {
 		fi
 	fi
 
-	_debugln "PV_PFRACs=$PV_PFRACs"
+	_debugln "$(env | grep ^PV_)"
 
 	for PFRAC in $PV_PFRACs; do
-		P="$(decode $(echo $PFRAC | awk -F'_' '{print $1}'))"
-		F="$(decode $(echo $PFRAC | awk -F'_' '{print $2}'))"
-		R="$(decode $(echo $PFRAC | awk -F'_' '{print $3}'))"
-		A="$(decode $(echo $PFRAC | awk -F'_' '{print $4}'))"
-		C="$(decode $(echo $PFRAC | awk -F'_' '{print $5}'))"
-
-		URL="https://repo.polyverse.io/register?authKey=$PV_AUTHKEY&nodeID=$PV_NODEID_$PFRAC&nodeName=$PV_NODEID&distro=$PV_DISTRO&project=$P&format=$F&release=$R&arch=$A&component=$C&version_id=$PV_VERSION_ID&gitsha=$PV_GITSHA"
-		_debugln "$URL"
-
-		# 'wget --content-on-error -qO- "$URL"' doesn't work reliably across distros
-		COMPONENT_FILE_PART="$(curl -s --insecure --fail -H 'Authorization: $PV_AUTHKEY' "$URL")"
-		EXIT_CODE=$?
-
-		if [ $EXIT_CODE -ne 0 ]; then
-			# can't get errror code and body at the same time, so need to fetch the error message
-			RESULT="$(curl -s --insecure "$URL")"
-			_echo "Registration error: $RESULT"
+		COMPONENT_FILE_PART="$(registerPFRAC --authkey $PV_AUTHKEY --commitsha $PV_GITSHA --distro $PV_DISTRO --keysha $PV_KEY_SHA256SUM --nodeid $PV_NODEID --pfrac $PFRAC --versionid $PV_VERSION_ID)"
+		if [ $? -ne 0 ]; then
+			echo "$COMPONENT_FILE_PART"
 			return 1
 		fi
 
@@ -132,6 +118,13 @@ main() {
 
 	_debugln "REPO_FILE_CONTENTS:"
 	_debugln "$REPO_FILE_CONTENTS"
+
+	_echo "Downloading and installing Polyverse key..."
+	RESULT="$(downloadAndInstallKey "$PV_FORMAT" "$PV_KEY_SHA256SUM" "$PV_KEY_URL" "$PV_KEY_LOCATION")"
+	if [ $? -ne 0 ]; then
+		_echo "$RESULT"
+		return 1
+	fi
 
 	${PV_FORMAT}_install "$REPO_FILE_CONTENTS"
 	return $?
@@ -197,8 +190,14 @@ parseInfoIfNeeded() {
 		return 0
 	fi
 
-	parseInfo "${_KEY}" "${_INFO}"
-	return $?
+	_RESULT="$(parseInfo "${_KEY}" "${_INFO}")"
+	if [ $? -ne 0 ]; then
+		_echo "${_RESULT}"  # display error message from parseInfo()
+		return 1            # return without echo'ing anything to stdout; result is empty string
+	fi
+
+	echo "${_RESULT}"
+	return 0
 }
 
 parseCommandLine() {
@@ -373,7 +372,7 @@ downloadAndInstallKey() {
 
 generateDefaultPFRACs() {
 	if [ $# -ne 4 ]; then
-		_echo "Error: generatePFRACs() missing required arguments."
+		echo "Error: generateDefaultPFRACs() missing required arguments."
 		return 1
 	fi
 
@@ -447,6 +446,76 @@ generateComponentsPFRACs() {
 
 	# echo'ing without quotes will remove leading/trailing whitespaces
 	echo ${_PFRACs}
+	return 0
+}
+
+registerPFRAC() {
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--authkey)
+				shift
+				_PV_AUTHKEY="$1"
+				;;
+			--commitsha)
+				shift
+				_PV_COMMITSHA="$1"
+				;;
+			--distro)
+				shift
+				_PV_DISTRO="$1"
+				;;
+			--keysha)
+				shift
+				_PV_KEYSHA="$1"
+				;;
+			--nodeid)
+				shift
+				_PV_NODEID="$1"
+				;;
+			--pfrac)
+				shift
+				_PV_PFRAC="$1"
+				;;
+			--versionid)
+				shift
+				_PV_VERSIONID="$1"
+				;;
+			*)
+				echo "Error: unhandled getKeyInstallationInfo() argument '$1'."
+				return 1
+				;;
+		esac
+		shift
+	done
+
+	if [ -z "${_PV_AUTHKEY}" ] || [ -z "${_PV_NODEID}" ] || [ -z "${_PV_PFRAC}" ] || [ -z "${_PV_KEYSHA}" ]; then
+		echo "Error: registerPFRAC() missing required arguments."
+		return 1
+	fi
+
+	_P="$(decode $(echo ${_PV_PFRAC} | awk -F'_' '{print $1}'))"
+	_F="$(decode $(echo ${_PV_PFRAC} | awk -F'_' '{print $2}'))"
+	_R="$(decode $(echo ${_PV_PFRAC} | awk -F'_' '{print $3}'))"
+	_A="$(decode $(echo ${_PV_PFRAC} | awk -F'_' '{print $4}'))"
+	_C="$(decode $(echo ${_PV_PFRAC} | awk -F'_' '{print $5}'))"
+
+	URL="https://repo.polyverse.io/register?authKey=${_PV_AUTHKEY}&nodeID=${_PV_NODEID}_${_PV_PFRAC}&nodeName=${_PV_NODEID}&distro=${_PV_DISTRO}&project=${_P}&format=${_F}&release=${_R}&arch=${_A}&component=${_C}&version_id=${_PV_VERSIONID}&commitsha=${_PV_COMMITSHA}&keysha=${_PV_KEYSHA}"
+	_debugln "$URL"
+
+	# 'wget --content-on-error -qO- "$URL"' doesn't work reliably across distros
+	COMPONENT_FILE_PART="$(curl -s --insecure --fail -H 'Authorization: $PV_AUTHKEY' "$URL")"
+	EXIT_CODE=$?
+
+	_debugln "EXIT_CODE: $EXIT_CODE"
+
+	if [ $EXIT_CODE -ne 0 ]; then
+		# can't get errror code and body at the same time, so need to fetch the error message
+		RESULT="$(curl -s --insecure "$URL")"
+		echo "Registration error: $RESULT"
+		return 1
+	fi
+
+	echo "$COMPONENT_FILE_PART"
 	return 0
 }
 
@@ -561,7 +630,7 @@ apk_install() {
 	FILE='/etc/apk/repositories'
 
 	# download/install the key
-	curl -s https://repo.polyverse.io/config/apk/3/key -o "/etc/apk/keys/support@polyverse.io-5992017d.rsa.pub"
+	#curl -s https://repo.polyverse.io/config/apk/3/key -o "/etc/apk/keys/support@polyverse.io-5992017d.rsa.pub"
 
 	# make sure the default repo file exists
 	if [ ! -f "$FILE" ]; then
@@ -613,7 +682,7 @@ apk_install() {
 rpm_install() {
 	FILE='/etc/yum.repos.d/polyverse.repo'
 
-	curl -s https://repo.polyverse.io/config/rpm/7/key -o "/etc/pki/RPM-GPG-KEY-Polyverse"
+	#curl -s https://repo.polyverse.io/config/rpm/7/key -o "/etc/pki/RPM-GPG-KEY-Polyverse"
 
 	printf "$1" > $FILE
 
@@ -647,14 +716,14 @@ deb_install() {
 		echo "Backup file ${FILE}.pvbak already exists, so we'll leave it alone."
 	fi
 
-	echo "Updating apt cache to insure we get the latest versions."
-	apt -qq update
+	#echo "Updating apt cache to insure we get the latest versions."
+	#apt -qq update
 
-	echo "Installing apt-transport-https to support the https repo endpoint."
-	apt -qq install apt-transport-https -y
+	_echo "Installing apt-transport-https to support the https repo endpoint."
+	apt -qq install apt-transport-https -y >/dev/null 2>&1
 
-	echo "Installing the Polyverse public repo key."
-	apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 067A5E87
+	#echo "Installing the Polyverse public repo key."
+	#apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 067A5E87
 
 	# check if there's a previous repo.polyverse.io entry in /etc/apt/sources.list file. support script being run multiple times.
 	RESULT="$(cat /etc/apt/sources.list | grep -i polyverse)"
