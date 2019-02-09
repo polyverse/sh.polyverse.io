@@ -131,6 +131,10 @@ main() {
 				AFTER_TEST_CMD="$(echo "$BLOCK_JSON" | jq -r '.after_test['$AFTER_TEST_INDEX']')"
 				echo "+ $AFTER_TEST_CMD"
 				eval "$AFTER_TEST_CMD"
+				if [ $? -ne 0 ]; then
+					echo "Error: after_test command '$AFTER_TEST_CMD' returned non-zero."
+					return 1
+				fi
 				let AFTER_TEST_INDEX=AFTER_TEST_INDEX+1
 			done
 		done

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-SHORT_DESCRIPTION="Output basic information about your host."
+SHORT_DESCRIPTION="Output basic system information."
 
 #******************************************************************************#
 #                                 main                                         #
@@ -105,6 +105,7 @@ getDistro() {
 		fi
 	fi
 
+	# Mac OS
 	sw_vers >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
 		_DISTRO="$(sw_vers | grep ^ProductName: | sed 's/^ProductName://' | xargs)"

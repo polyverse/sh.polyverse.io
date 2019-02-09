@@ -6,6 +6,7 @@
 				"env":[
 					"PV_IMAGE=alpine:3.8",
 					"PV_BEFORE_TEST_CMD=\"apk update >/dev/null 2>&1 && apk add curl >/dev/null 2>&1\"",
+					"PV_AFTER_TEST_CMD=\"apk update && apk upgrade --no-cache --available && sed -in 's/^#//g' /etc/apk/repositories\"",
 					"PV_X_EXIT=0"
 				]
 			},
@@ -13,6 +14,7 @@
 				"env":[
 					"PV_IMAGE=centos:7",
 					"PV_BEFORE_TEST_CMD=\"\"",
+					"PV_AFTER_TEST_CMD=\"yum update -y && yum reinstall -y \\*\"",
 					"PV_X_EXIT=0"
 				]
 			},
@@ -20,6 +22,7 @@
 				"env":[
 					"PV_IMAGE=ubuntu:xenial",
 					"PV_BEFORE_TEST_CMD=\"apt update -y >/dev/null 2>&1 && apt install -y curl >/dev/null 2>&1\"",
+					"PV_AFTER_TEST_CMD=\"apt-get update -y && apt-get install -y --reinstall \\$(dpkg --get-selections | awk '{print \\$1}')\"",
 					"PV_X_EXIT=0"
 				]
 			}
@@ -28,12 +31,71 @@
 			"CONTAINER_ID=\"$(docker run --name post-deploy -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
 			"docker exec -t $CONTAINER_ID sh -c \"$PV_BEFORE_TEST_CMD\""
 		],
-		"cmd":"docker exec -t $CONTAINER_ID sh -c \"cat /opt/pv/scripts/install | PV_BASE_URL=$PV_BASE_URL sh -s install hwTgPAGCyNGYDmiRAHLcdhBl3 --debug\"",
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"cat /opt/pv/out/scripts/install | PV_BASE_URL=$PV_BASE_URL sh -s install hwTgPAGCyNGYDmiRAHLcdhBl3\"",
 		"tests":[
 			"$EXIT -eq $PV_X_EXIT"
 		],
 		"after_test":[
 			"cat $STDOUT",
+			"docker exec -t $CONTAINER_ID sh -c \"$PV_AFTER_TEST_CMD\"",
+			"docker rm -fv $CONTAINER_ID"
+		]
+	},
+	{
+		"name":"install --uninstall",
+		"matrix":[
+			{
+				"comment":"test that polyverse'd /etc/apk/repositories is properly undone.",
+				"env":[
+					"PV_REPOFILE=/etc/apk/repositories",
+					"PV_BEFORE_TEST_CMD=\"apk update && apk add curl && cp /opt/pv/tests/repo-apk-post.txt $PV_REPOFILE && cp /opt/pv/tests/repo-apk-pre.txt ${PV_REPOFILE}.pvbak\"",
+					"PV_IMAGE=alpine:3.8",
+					"PV_X_DIFF_FILE=\"/opt/pv/tests/repo-apk-pre.txt\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"comment":"test that a standard /etc/apk/repositories is untouched after uninstall.",
+				"env":[
+					"PV_REPOFILE=/etc/apk/repositories",
+					"PV_BEFORE_TEST_CMD=\"apk update && apk add curl && cp /opt/pv/tests/repo-apk-pre.txt $PV_REPOFILE\"",
+					"PV_IMAGE=alpine:3.8",
+					"PV_X_DIFF_FILE=\"/opt/pv/tests/repo-apk-pre.txt\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"comment":"test that polyverse'd /etc/apt/sources.list is properly undone.",
+				"env":[
+					"PV_REPOFILE=/etc/apt/sources.list",
+					"PV_BEFORE_TEST_CMD=\"apt update -y && apt install -y curl && cp /opt/pv/tests/repo-ubuntu-post.txt $PV_REPOFILE\"",
+					"PV_IMAGE=ubuntu:xenial",
+					"PV_X_DIFF_FILE=\"/opt/pv/tests/repo-ubuntu-pre.txt\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"comment":"test that a standard /etc/apt/sources.list is untouched after uninstall.",
+				"env":[
+					"PV_REPOFILE=/etc/apt/sources.list",
+					"PV_BEFORE_TEST_CMD=\"apt update -y && apt install -y curl && cp /opt/pv/tests/repo-ubuntu-pre.txt $PV_REPOFILE\"",
+					"PV_IMAGE=ubuntu:xenial",
+					"PV_X_DIFF_FILE=\"/opt/pv/tests/repo-ubuntu-pre.txt\"",
+					"PV_X_EXIT=0"
+				]
+			}
+		],
+		"before_test":[
+			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
+			"docker exec -t $CONTAINER_ID sh -c \"$PV_BEFORE_TEST_CMD\""
+		],
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \" cat /opt/pv/scripts/install | PV_BASE_URL=$PV_BASE_URL sh -s install --uninstall\"",
+		"tests":[
+			"-z \"$(docker exec -t $CONTAINER_ID sh -c \"diff $PV_REPOFILE $PV_X_DIFF_FILE\")\"",
+			"! -z \"$(cat $STDOUT | grep \"Successfully removed/updated repository file\")\"",
+			"$EXIT -eq $PV_X_EXIT"
+		],
+		"after_test":[
 			"docker rm -fv $CONTAINER_ID"
 		]
 	}
