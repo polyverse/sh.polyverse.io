@@ -92,7 +92,7 @@
 		"cmd":"docker exec -t $CONTAINER_ID sh -c \" cat /opt/pv/scripts/install | PV_BASE_URL=$PV_BASE_URL sh -s install --uninstall\"",
 		"tests":[
 			"-z \"$(docker exec -t $CONTAINER_ID sh -c \"diff $PV_REPOFILE $PV_X_DIFF_FILE\")\"",
-			"! -z \"$(cat $STDOUT | grep \"Successfully removed/updated repository file\")\"",
+			"! -z \"$(cat $STDOUT | grep \"Uninstall successful!\")\"",
 			"$EXIT -eq $PV_X_EXIT"
 		],
 		"after_test":[

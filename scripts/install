@@ -39,12 +39,13 @@ main() {
 	parseCommandLine "$@"
 	if [ $? -ne 0 ]; then return 1; fi
 
-	# the only PV_ variable that's required at this point is the authkey
+	# the only PV_ variable that's required at this point is the authkey (or --uninstall was specified)
 	if [ -z "$PV_AUTHKEY" ] && [ -z "$PV_UNINSTALL" ]; then
 		usage
 		return 1
 	fi
 
+	_echo "Determining Linux distro info..."
 	# `curl https://sh.polyverse.io | sh -s info` to collect linux distro details; response looks like:
 	# 
 	# DISTRO=rhel
@@ -95,13 +96,14 @@ main() {
 
 	# if --uninstall was specified, just call uninstall() and exit
 	if [ "$PV_UNINSTALL" = "true" ]; then
-		RESULT="$(uninstall $PV_REPOFILE)"
-		if [ $? -ne 0 ]; then
-			_echo "$RESULT"
-			return 1
-		fi
+		PV_POST_UNINSTALL_CMD="$(uninstall $PV_REPOFILE)"
+		if [ $? -ne 0 ]; then _echo "$PV_POST_UNINSTALL_CMD"; return 1; fi
+
+		RESULT="$(displayPostUninstallMessage "$PV_POST_UNINSTALL_CMD")"
+		if [ $? -ne 0 ]; then _echo "$RESULT"; return 1; fi
 
 		echo "$RESULT"
+		echo
 		return 0
 	fi
 
@@ -113,7 +115,8 @@ main() {
 	PV_KEY_URL="$(echo "$RESULT" | awk '{print $2}')"
 	PV_KEY_LOCATION="$(echo "$RESULT" | awk '{print $3}')"
 
-	# generate the default PFRACs for this distro/format/release/arch; usually something like os and updates
+	# generate the default PFRACs for this distro/format/release/arch
+	# example default PFRACs: "centos_rpm_7_x86--64_os centos_rpm_7_x86--64_updates"
 	PV_PFRACs="$(generateDefaultPFRACs $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH)"
 	if [ $? -ne 0 ]; then
 		# if generateDefaultPFRACs() returned non-zero, let's construct a default PFRAC for registerPFRAC()
@@ -123,31 +126,22 @@ main() {
 
 	# support for --add-components (e.g., "--add-components kernel")
 	RESULT="$(generateComponentsPFRACs "$PV_DISTRO" "$PV_FORMAT" "$PV_RELEASE" "$PV_ARCH" "$PV_COMPONENTS")"
-	if [ $? -ne 0 ]; then
-		_echo "$RESULT"
-		return 1
-	fi
-
+	if [ $? -ne 0 ]; then _echo "$RESULT"; return 1; fi
 	# RESULT contains the additional PFRACs (if any)
 	PV_PFRACs="$PV_PFRACs $RESULT"
 
 	_debugln "PV_PFRACs: $PV_PFRACs"
 
 	# call the /register endpoint for every PFRAC to retrieve the repo file content required for that component.
-	# all the components are concatenated so it can be added to the existing repo file.
+	# all the components are concatenated so it can be added to the PV_REPOFILE file.
 	for PFRAC in $PV_PFRACs; do
 		COMPONENT_FILE_PART="$(registerPFRAC $PV_AUTHKEY $PV_NODEID $PV_DISTRO $PV_VERSION_ID $PFRAC $PV_KEY_SHA256 $PV_GITSHA)"
-		if [ $? -ne 0 ]; then
-			_echo "$COMPONENT_FILE_PART"
-			return 1
-		fi
+		if [ $? -ne 0 ]; then _echo "$COMPONENT_FILE_PART"; return 1; fi
 
 		REPO_FILE_CONTENTS="${REPO_FILE_CONTENTS}${COMPONENT_FILE_PART}\n\n"
 	done
 
 	_debugln "REPO_FILE_CONTENTS: $REPO_FILE_CONTENTS"
-
-	# TO DO: anything else that needs to be installed?
 
 	_echo "Installing Polyverse public key..."
 	RESULT="$(downloadAndInstallKey "$PV_FORMAT" "$PV_KEY_SHA256" "$PV_KEY_URL" "$PV_KEY_LOCATION")"
@@ -158,21 +152,19 @@ main() {
 	if [ $? -ne 0 ]; then _echo "$RESULT"; return 1; fi
 
 	# uninstall (remove all references to polyverse in repo files) before installing
-	# so that installs can be done over-and-over
+	# so that installs can be done over-and-over; no harm if polyverse was never installed
 	RESULT="$(uninstall $PV_REPOFILE)"
-	if [ $? -ne 0 ]; then
-		_echo "$RESULT"
-		return 1
-	fi
+	if [ $? -ne 0 ]; then _echo "$RESULT"; return 1; fi
 
 	_echo "Adding Polyverse repo information to file '$PV_REPOFILE'..."
-	RESULT="$(install $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH "$REPO_FILE_CONTENTS")"
-	if [ $? -ne 0 ]; then
-		echo "$RESULT"
-		return 1
-	fi
+	PV_POST_INSTALL_CMD="$(install $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH "$REPO_FILE_CONTENTS" "$PV_REPOFILE")"
+	if [ $? -ne 0 ]; then _echo "$PV_POST_INSTALL_CMD"; return 1; fi
 
-	displayPostInstallMessage "$RESULT"	
+	RESULT="$(displayPostInstallMessage "$PV_POST_INSTALL_CMD")"
+	if [ $? -ne 0 ]; then _echo "$RESULT"; return 1; fi
+
+	echo "$RESULT"
+	echo
 	return 0
 }
 
@@ -199,6 +191,7 @@ usage() {
 	Options:
 
 	  --add-component        Install additional repos (e.g., kernel, epel)
+	  --uninstall            Uninstall (remove Polyverse repos from repo file)
 	  --help                 Display usage.
 
 	You can obtain a free trial authkey at https://polyverse.io.
@@ -207,10 +200,15 @@ EOF
 }
 
 displayPostInstallMessage() {
-	#2345678901234567890123456789012345678901234567890123456789012345678901234567890
+	if [ $# -ne 1 ]; then
+		echo "Error: displayPostInstallMessage() requires 1 argument but received '$#'."
+		return 1
+	fi
+
 	_POST_INSTALL_CMD="$1"
 
-	cat >&2 <<-EOF
+	#2345678901234567890123456789012345678901234567890123456789012345678901234567890
+	cat <<-EOF
 
 	Installation successful! Polyverse is now your preferred repo!
 
@@ -227,8 +225,33 @@ displayPostInstallMessage() {
 	  https://polyverse.io/polymorphic-linux-installation-guide/
 
 	If you have any questions, you can reach us at support@polyverse.io.
+	EOF
 
-EOF
+	return 0
+}
+
+displayPostUninstallMessage() {
+	if [ $# -ne 1 ]; then
+		echo "Error: displayPostUninstallMessage() requires 1 argument but received '$#'."
+		return 1
+	fi
+
+	_POST_UNINSTALL_CMD="$1"
+
+	#2345678901234567890123456789012345678901234567890123456789012345678901234567890
+	cat <<-EOF
+
+	Uninstall successful!
+
+	The following command will replace the currently installed packages with
+	the original, non-polymorphic version:
+
+	  ${_POST_UNINSTALL_CMD}
+
+	If you have any questions, you can reach us at support@polyverse.io.
+	EOF
+
+	return 0
 }
 
 parseInfo() {
@@ -606,138 +629,6 @@ decode() {
 	echo "$str"
 }
 
-display_reinstall_cmd() {
-	echo
-	echo "Installation successful! Polyverse is now your preferred repo!"
-	echo
-	echo "From this point forward, any package you install (or re-install) will be secured"
-	echo "by Polyverse."
-	echo
-	echo "More information available at:"
-	echo
-	echo "  https://polyverse.io/polymorphic-linux-installation-guide/"
-	echo
-	echo "If you have any questions, you can reach us at support@polyverse.io."
-	echo
-	echo "post-install commands: $1"
-}
-
-apk_install() {
-	FILE='/etc/apk/repositories'
-
-	# make sure the default repo file exists
-	if [ ! -f "$FILE" ]; then
-		echo "The default repo file '$FILE' is missing. This is unexpected, so exiting..."
-		exit 1
-	fi
-
-	# create a backup file
-	if [ ! -f "${FILE}.pvbak" ]; then
-		echo "Backing up $FILE to ${FILE}.pvbak..."
-		cp $FILE ${FILE}.pvbak
-		if [ $? -ne 0 ]; then
-			echo "Unable to create backup file. This is unexpected, so exiting..."
-			exit 1
-		fi
-	else
-		echo "Backup file ${FILE}.pvbak already exists, so we'll leave it alone."
-	fi
-
-	# check if there's a previous repo.polyverse.io entry in /etc/apk/repositories file. support script being run multiple times.
-	RESULT="$(cat $FILE | grep -i polyverse)"
-	if [ ! -z "$RESULT" ]; then
-		echo "Detected previous entry for repo.poyverse.io. Restoring from ${FILE}.pvbak..."
-		cp ${FILE}.pvbak ${FILE}
-	fi
-
-	# Update the repositories file
-	ESCAPED_TEXT="$(echo "$1" | sed 's/\//\\\//g' | sed 's/$/\\n/' | tr -d '\n')"
-	sed -i "1s/^/$ESCAPED_TEXT/" $FILE
-	if [ $? -ne 0 ]; then
-		echo "The Polyverse repo did not install correctly. Restoring backup. Please contact us at support@polyverse.io."
-		mv ${FILE}.pvbak ${FILE}
-		if [ $? -ne 0 ]; then
-			"Encountered an issue moving the file '${FILE}.pvbak' to '$FILE'. Please perform this manually to complete the rollback."
-		fi
-
-		exit 1
-	fi
-
-	# Make sure mirrors.polyverse.io uses http instead of https
-	sed -i 's/^https.*mirrors\.polyverse\.io/http:\/\/mirrors.polyverse.io/g' $FILE
-
-	# Comment out all the lines that aren't repo.polyverse.io. After re-installing all packages, user must remove #
-	sed -in '/repo.polyverse.io/! s/^/#/' $FILE
-
-	display_reinstall_cmd "apk update && apk upgrade --update-cache --available && sed -in 's/^#//g' /etc/apk/repositories"
-}
-
-rpm_install() {
-	FILE='/etc/yum.repos.d/polyverse.repo'
-
-	printf "$1" > $FILE
-
-	# check that the file was installed properly
-	if [ ! -f "$FILE" ]; then
-		echo "The Polyverse repo did not install correctly, please try again or contact Polyverse support. Exiting..."
-		exit 1
-	fi
-
-	display_reinstall_cmd "yum reinstall -y \*"
-}
-
-deb_install() {
-	FILE='/etc/apt/sources.list'
-
-	# make sure the default repo file exists
-	if [ ! -f "$FILE" ]; then
-		echo "The default repo file '$FILE' is missing. This is unexpected, so exiting..."
-		exit 1
-	fi
-
-	# sed -i 's/^.*polyverse.*$//ig' /etc/apt/sources.bak
-	# sed '/./,$!d'
-
-	# create a backup file
-	if [ ! -f "${FILE}.pvbak" ]; then
-		echo "Backing up $FILE to ${FILE}.pvbak..."
-		cp $FILE ${FILE}.pvbak
-		if [ $? -ne 0 ]; then
-			echo "Unable to create backup file. This is unexpected, so exiting..."
-			exit 1
-		fi
-	else
-		echo "Backup file ${FILE}.pvbak already exists, so we'll leave it alone."
-	fi
-
-	echo "Updating apt cache to insure we get the latest versions."
-	apt -qq update >/dev/null 2>&1
-
-	_echo "Installing apt-transport-https to support the https repo endpoint..."
-	apt-get -qq install apt-transport-https -y >/dev/null 2>&1
-
-	# check if there's a previous repo.polyverse.io entry in /etc/apt/sources.list file. support script being run multiple times.
-	RESULT="$(cat /etc/apt/sources.list | grep -i polyverse)"
-	if [ ! -z "$RESULT" ]; then
-		echo "Detected previous entry for repo.poyverse.io. Restoring from ${FILE}.pvbak..."
-		cp ${FILE}.pvbak ${FILE}
-	fi
-
-	# Update the sources.list file
-	ESCAPED_TEXT="$(echo "$1" | sed 's/\//\\\//g' | sed 's/$/\\n/' | tr -d '\n')"
-	sed -i "1s/^/$ESCAPED_TEXT/" $FILE
-	if [ $? -ne 0 ]; then
-		echo "The Polyverse repo did not install correctly. Restoring backup. Please contact us at support@polyverse.io."
-		mv ${FILE}.pvbak ${FILE}
-		if [ $? -ne 0 ]; then
-			"Encountered an issue moving the file '${FILE}.pvbak' to '$FILE'. Please perform this manually to complete the rollback."
-		fi
-		exit 1
-	fi
-
-	display_reinstall_cmd "apt-get update && apt-get -y --allow-change-held-packages install --reinstall \$(dpkg --get-selections | awk '{print \$1}')"
-}
-
 getRepoFileLocation() {
 	if [ $# -ne 1 ]; then
 		echo "Error: getRepoFileLocation() expected 1 argument but received $#."
@@ -780,16 +671,19 @@ uninstall() {
 			if [ -f "${_REPOFILE_LOCATION}.pvbak" ]; then
 				_CMD="cp \"${_REPOFILE_LOCATION}.pvbak\" \"${_REPOFILE_LOCATION}\""
 			fi
+			_POST_UNINSTALL_CMD="apk update && apk upgrade --no-cache --available"
 			;;
 		"/etc/apt/sources.list")
 			# remove all lines that contain "polyveres" (case-insensitive) && remove all blank lines at the top of the file
 			_CMD="sed -i 's/^.*polyverse.*$//ig' \"${_REPOFILE_LOCATION}\" && sed -i '/./,\$!d' \"${_REPOFILE_LOCATION}\""
+			_POST_UNINSTALL_CMD="apt-get update -y && apt-get install -y --reinstall \$(dpkg --get-selections | awk '{print \$1}')"
 			;;
 		"/etc/yum.repos.d/polyverse.repo")
 			# if the file exists, just remove it.
 			if [ -f "${_REPOFILE_LOCATION}" ]; then
 				_CMD="rm -f ${_REPOFILE_LOCATION}"
 			fi
+			_POST_UNINSTALL_CMD="yum update -y && yum reinstall -y \*"
 			;;
 		*)
 			echo "Error: uninstall() doesn't know what to do with repo file '${_REPOFILE_LOCATION}'."
@@ -805,77 +699,83 @@ uninstall() {
 		fi
 	fi
 
-	echo "Successfully removed/updated repository file '${_REPOFILE_LOCATION}'."
+	echo "${_POST_UNINSTALL_CMD}"
 	return 0
 }
 
 install() {
-        if [ $# -ne 5 ]; then
-                echo "Error: install() expecting 5 argument, but received $#."
-                return 1
-        fi
+	if [ $# -ne 6 ]; then
+		echo "Error: install() expecting 5 argument, but received $#."
+		return 1
+	fi
 
 	_DISTRO="$1"
         _FORMAT="$2"
 	_RELEASE="$3"
 	_ARCH="$4"
 	_REPO_CONTENTS="$5"
+	_REPOFILE_LOCATION="$6"
 
-	case "${_FORMAT}" in
-		apk)
-			_FILENAME="/etc/apk/repositories"
-
-			if [ ! -f "${_FILENAME}.pvbak" ]; then
-				_debugln "Backing-up ${_FILENAME} to ${_FILENAME}.pvbak..."
-				_RESULT="$(cp ${_FILENAME} ${_FILENAME}.pvbak)"
+	case "${_REPOFILE_LOCATION}" in
+		"/etc/apk/repositories")
+			if [ ! -f "${_REPOFILE_LOCATION}.pvbak" ]; then
+				_debugln "Backing-up ${_REPOFILE_LOCATION} to ${_REPOFILE_LOCATION}.pvbak..."
+				_RESULT="$(cp ${_REPOFILE_LOCATION} ${_REPOFILE_LOCATION}.pvbak)"
 				if [ $? -ne 0 ]; then
-					echo "Error: command 'cp ${_FILENAME} ${_FILENAME}.pvbak returned non-zero: ${_RESULT}."
+					echo "Error: command 'cp ${_REPOFILE_LOCATION} ${_REPOFILE_LOCATION}.pvbak returned non-zero: ${_RESULT}."
 					return 1
 				fi
 			fi
 
 			# Update the repositories file
 			_ESCAPED_TEXT="$(echo "${_REPO_CONTENTS}" | sed 's/\//\\\//g' | sed 's/$/\\n/' | tr -d '\n')"
-			sed -i "1s/^/${_ESCAPED_TEXT}/" ${_FILENAME}
+			sed -i "1s/^/${_ESCAPED_TEXT}/" ${_REPOFILE_LOCATION}
 			if [ $? -ne 0 ]; then
-				echo "Error: install() encountered issue modifying '${_FILENAME}'."
+				echo "Error: install() encountered issue modifying '${_REPOFILE_LOCATION}'."
 				return 1
 			fi
 
 			# make sure mirrors.polyverse.io uses http instead of https
-			sed -i 's/^https.*mirrors\.polyverse\.io/http:\/\/mirrors.polyverse.io/g' ${_FILENAME}
+			sed -i 's/^https.*mirrors\.polyverse\.io/http:\/\/mirrors.polyverse.io/g' ${_REPOFILE_LOCATION}
         
 			# Comment out all the lines that aren't repo.polyverse.io. After re-installing all packages, user must remove #
-			sed -in '/repo.polyverse.io/! s/^/#/' ${_FILENAME}
+			sed -in '/repo.polyverse.io/! s/^/#/' ${_REPOFILE_LOCATION}
 
 			_POST_INSTALL_CMD="apk update && apk upgrade --no-cache --available && sed -in 's/^#//g' /etc/apk/repositories"
 			;;
-		deb)
-			_FILENAME="/etc/apt/sources.list"
-
+		"/etc/apt/sources.list")
 			# Update the sources.list file
 			_ESCAPED_TEXT="$(echo "${_REPO_CONTENTS}" | sed 's/\//\\\//g' | sed 's/$/\\n/' | tr -d '\n')"
-			sed -i "1s/^/${_ESCAPED_TEXT}/" ${_FILENAME}
+			sed -i "1s/^/${_ESCAPED_TEXT}/" ${_REPOFILE_LOCATION}
 			if [ $? -ne 0 ]; then
-				echo "Error: install() encounterd issue modifying '${_FILENAME}'."
+				echo "Error: install() encounterd issue modifying '${_REPOFILE_LOCATION}'."
 				return 1
 			fi
 			_POST_INSTALL_CMD="apt-get update -y && apt-get install -y --reinstall \$(dpkg --get-selections | awk '{print \$1}')"
 			;;
-		rpm)
-			_FILENAME="/etc/yum.repos.d/polyverse.repo"
-
-			printf "${_REPO_CONTENTS}" > "${_FILENAME}"
+		"/etc/yum.repos.d/polyverse.repo")
+			printf "${_REPO_CONTENTS}" > "${_REPOFILE_LOCATION}"
 
 			# check that the file was installed properly
-			if [ ! -f "${_FILENAME}" ]; then
-				echo "Error: install() unable to create '${_FILENAME}'."
+			if [ ! -f "${_REPOFILE_LOCATION}" ]; then
+				echo "Error: install() unable to create '${_REPOFILE_LOCATION}'."
 				return 1
 			fi
-			_POST_INSTALL_CMD="yum update -y && yum reinstall -y \*"
+			case $_DISTRO in
+				centos|rhel)
+					_POST_INSTALL_CMD="yum update -y && yum reinstall -y \*"
+					;;
+				fedora)
+					_POST_INSTALL_CMD="dnf update -y && dnf -y repository-packages polyverse-os move-to && dnf -y repository-packages polyverse-updates move-to"
+					;;
+				*)
+					echo "Error: Unexpected distro '${_DISTRO}' for repo file '${_REPOFILE_LOCATION}'."
+					return 1
+					;;
+			esac
 			;;
 		*)
-			echo "Error: install() unhandled format '${_FORMAT}'."
+			echo "Error: install() doesn't know what to do with repo file '${_REPOFILE_LOCATION}'."
 			return 1
 			;;
 	esac

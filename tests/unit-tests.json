@@ -544,7 +544,7 @@
 		]
 	},
 	{
-		"name":"info.generateComponentsPFRACs",
+		"name":"install.generateComponentsPFRACs",
 		"source":"$PV_SH_ROOT/scripts/install",
 		"matrix":[
 			{
