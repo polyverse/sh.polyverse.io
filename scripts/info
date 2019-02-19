@@ -1,85 +1,356 @@
 #!/bin/sh
 
-SHORT_DESCRIPTION="Output basic information about your host."
+SHORT_DESCRIPTION="Output basic system information."
 
-whatDistro() {
-	_DISTRO=""
+#******************************************************************************#
+#                                 main                                         #
+#******************************************************************************#
 
-	if [ -f /etc/os-release ]; then
-		_DISTRO="$(cat /etc/os-release | grep "^ID=" | cut -d "=" -f2 | tr -d '"')"
+main() {
+	# pattern is that the get[...]() functions always returns 0 or 1 via $?
+	# if 0, then stdout represents the return value
+	# if 1, then stdout contains the error message
+
+	DISTRO="$(getDistro)"
+	if [ $? -ne 0 ]; then
+		(>&2 echo "$DISTRO")
+		return 1
+	fi
+	echo "DISTRO=$DISTRO"
+
+	RELEASE="$(getRelease)"
+	if [ $? -ne 0 ]; then
+		(>&2 echo "$RELEASE")
+		return 1
+	fi
+	echo "RELEASE=$RELEASE"
+
+	VERSION_ID="$(getVersionId)"
+	if [ $? -ne 0 ]; then
+		(>&2 echo "$VERSION_ID")
+		return 1
+	fi
+	echo "VERSION_ID=$VERSION_ID"
+
+	ARCH="$(getArch)"
+	if [ $? -ne 0 ]; then
+		(>&2 echo "$ARCH")
+		return 1
+	fi
+	echo "ARCH=$ARCH"
+
+	PACKAGE_MANAGER="$(getPackageManager)"
+	if [ $? -ne 0 ]; then
+		(>&2 echo "$PACKAGE_MANAGER")
+		return 1
+	fi
+	echo "PACKAGE_MANAGER=$PACKAGE_MANAGER"
+
+	FORMAT="$(getFormat)"
+	if [ $? -ne 0 ]; then
+		(>&2 echo "$FORMAT")
+		return 1
+	fi
+	echo "FORMAT=$FORMAT"
+
+	HOSTNAME="$(getHostName)"
+	if [ $? -ne 0 ]; then
+		(>&2 echo "$HOSTNAME")
+		return 1
+	fi
+	echo "HOSTNAME=$HOSTNAME"
+
+	KERNEL_NAME="$(getKernelName)"
+	if [ $? -ne 0 ]; then
+		(>&2 echo "$KERNEL_NAME")
+		return 1
+	fi
+	echo "KERNEL_NAME=$KERNEL_NAME"
+
+	KERNEL_RELEASE="$(getKernelRelease)"
+	if [ $? -ne 0 ]; then
+		(>&2 echo "$KERNEL_RELEASE")
+		return 1
+	fi
+	echo "KERNEL_RELEASE=$KERNEL_RELEASE"
+
+	return 0
+}
+
+#******************************************************************************#
+#                               functions                                      #
+#******************************************************************************#
+
+getDistro() {
+	if [ -f "/etc/os-release" ]; then
+		# file has line like 'ID=alpine'
+		_DISTRO="$(cat /etc/os-release | grep "^ID=" | cut -d '=' -f2 | tr -d '"')"
+		if [ ! -z "${_DISTRO}" ]; then
+			echo ${_DISTRO}
+			return 0
+		fi
 	fi
 
-	if [ ! -z "$_DISTRO" ]; then
-		echo "$_DISTRO"
-		return 0
+	if [ -f "/etc/system-release" ]; then
+		# centos 6 has a single line. e.g., 'CentOS release 6.10 (Final)'
+		if [ ! -z "$(cat /etc/system-release | grep ^CentOS)" ]; then
+			echo "centos"
+			return 0
+		fi
+
+		# rhel 6 has a single line. e.g., 'Red Hat Enterprise Linux Server release 6.10 (Santiago)'
+		if [ ! -z "$(cat /etc/system-release | grep ^Red)" ]; then
+			echo "rhel"
+			return 0
+		fi
 	fi
 
-	if [ -f /etc/alpine-release ]; then
-		echo "alpine"
-		return 0
+	# Mac OS
+	sw_vers >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		_DISTRO="$(sw_vers | grep ^ProductName: | sed 's/^ProductName://' | xargs)"
+		if [ ! -z "${_DISTRO}" ]; then
+			echo "${_DISTRO}"
+			return 0
+		fi
 	fi
 
-	if [ -f /etc/centos-release ]; then
-		echo "centos"
-		return 0
-	fi
-
-	if [ -f /etc/fedora-release ]; then
-		echo "fedora"
-		return 0
-	fi
-
-	if [ -f /etc/redhat-release ]; then
-		echo "rhel"
-		return 0
-	fi
-
+	echo "Error: Unable to determine Linux distro."
 	return 1
 }
 
-whatRelease() {
-	_RELEASE="$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')"
-
-	if [ -z "$_RELEASE" ] && [ -f /etc/centos-release ]; then
-		_RELEASE="$(cat /etc/centos-release | grep ^CentOS | sed 's/[[:alpha:]|(|)|[:space:]]//g')"
+getRelease() {
+	_DISTRO="$(getDistro)"
+	if [ $? -ne 0 ]; then
+		echo "${_DISTRO}"
+		return 1
 	fi
 
-        if [ -z "$_RELEASE" ] && [ -f /etc/redhat-release ]; then
-                _RELEASE="$(cat /etc/redhat-release | grep ^Red | sed 's/[[:alpha:]|(|)|[:space:]]//g')"
-        fi
+	_VERSION_ID="$(getVersionId)"
+	if [ $? -ne 0 ]; then
+		echo "${_VERSION_ID}"
+		return 1
+	fi
 
-        if [ ! -z "$_RELEASE" ]; then
-                echo "$_RELEASE"
-                return 0
-        fi
+	case "$_DISTRO" in
+		alpine)
+			# make 3.x vs 3.x.x
+			echo $_VERSION_ID | awk -F'.' '{print $1"."$2}'
+			;;
+		centos|fedora|ol|rhel)
+			# make 7 vs. 7.6
+			echo $_VERSION_ID | awk -F'.' '{print $1}'
+			;;
+		ubuntu)
+			_RELEASE="$(cat /etc/*-release 2>/dev/null | grep "^DISTRIB_CODENAME=" | cut -d '=' -f2 | tr -d '"')"
+			if [ -z "$_RELEASE" ]; then return 1; fi
 
+			echo "$_RELEASE"
+			;;
+		*)
+			echo "$_VERSION_ID"
+			;;
+	esac
+
+	return 0
+}
+
+getVersionId() {
+	if [ -f "/etc/system-release" ]; then
+		# example: CentOS release 6.10 (Final)
+		_RELEASEVER="$(cat /etc/system-release | grep "^CentOS.* release" | sed 's/^CentOS.* release //' | awk '{print $1}')"
+		if [ ! -z "${_RELEASEVER}" ]; then
+			echo "${_RELEASEVER}"
+			return 0
+		fi
+
+		# example: Red Hat Enterprise Linux Server release 6.10 (Santiago)
+		_RELEASEVER="$(cat /etc/system-release | grep "^Red.* release" | sed 's/^Red.* release //' | awk '{print $1}')"
+		if [ ! -z "${_RELEASEVER}" ]; then
+			echo "${_RELEASEVER}"
+			return 0
+		fi
+	fi
+
+	if [ -f "/etc/os-release" ]; then
+		_RELEASE="$(cat /etc/os-release 2>/dev/null | grep "VERSION_ID=" | cut -d "=" -f2 | tr -d '"')"
+		if [ ! -z "$_RELEASE" ]; then
+			echo "$_RELEASE"
+			return 0
+		fi
+	fi
+
+	sw_vers >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		_VERSION_ID="$(sw_vers | grep ^ProductVersion: | sed 's/^ProductVersion://' | xargs)"
+		if [ ! -z "${_VERSION_ID}" ]; then
+			echo "${_VERSION_ID}"
+			return 0
+		fi
+	fi
+
+	echo "Error: Unable to determine version id."
 	return 1
 }
 
-# make sure we're able to retrieve the distro release id (e.g., alpine, centos, ubuntu) and version id.
-DISTRO="$(whatDistro)"
-if [ $? -ne 0 ]; then
-	(>&2 echo "Could not determine Linux distro. Exiting...")
-	exit 1
+getKernelRelease() {
+	_KERNEL_RELEASE="$(uname -r)"
+	if [ $? -ne 0 ] || [ -z "${_KERNEL_RELEASE}" ]; then
+		echo "Error: Unable to determine kernel release."
+		return 1
+	fi
+
+	echo "${_KERNEL_RELEASE}"
+	return 0
+}
+
+getKernelName() {
+	_KERNEL_NAME="$(uname -s)"
+	if [ $? -ne 0 ] || [ -z "${_KERNEL_NAME}" ]; then
+		echo "Error: unable to determine kernel name."
+		return 1
+	fi
+
+	echo "${_KERNEL_NAME}"
+	return 0
+}
+
+getArch() {
+	# on alpine, apk uses the value in this file to determine the arch for constructing the package url
+	if [ -f "/etc/apk/arch" ]; then
+		cat /etc/apk/arch
+		return 0
+	fi
+
+	# on deb-based systems, use dpkg to find out the architecture used for constructing the package url
+	dpkg --version >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		_ARCH="$(dpkg --print-architecture)"
+		if [ $? -ne 0 ]; then
+			echo "Error: command 'dpkg --print-architecture' returned non-zero."
+			return 1
+		fi
+		echo "${_ARCH}"
+		return 0
+	fi
+
+	# default to uname; however, this may not be accurate inside a docker container
+	_ARCH="$(uname -m)"
+	if [ $? -ne 0 ]; then
+		echo "Error: command 'uname -m' returned non-zero."
+		return 1
+	else
+		echo "${_ARCH}"
+		return 0
+	fi
+
+	# we should never get here, but keep in case we incorrectly change the logic above.
+	echo "Error: getArch() unexpected error."
+	return 1
+}
+
+getFormat() {
+	_PACKAGE_MANAGER="$(getPackageManager)"
+	if [ $? -ne 0 ]; then
+		# should contain error message from getPackageManager()
+		echo "$_PACKAGE_MANAGER"
+		return 1;
+	fi
+
+	case "${_PACKAGE_MANAGER}" in
+		brew)
+			echo "tgz"
+			return 0
+			;;
+		yum|dnf|zypper)
+			echo "rpm"
+			return 0
+			;;
+		apt|apt-get)
+			echo "deb"
+			return 0
+			;;
+		apk)
+			echo "apk"
+			return 0
+			;;
+	esac
+
+	echo "Error: unable to determine package format used by package manager '${_PACKAGE_MANAGER}'."
+	return 1
+}
+
+getPackageManager() {
+	# mac
+	brew --version >/dev/null 2>&1
+	if [ $? -ne 127 ]; then
+		echo "brew"
+		return 0
+	fi
+
+	dnf >/dev/null 2>&1
+	if [ $? -ne 127 ]; then
+		echo "dnf"
+		return 0
+	fi
+
+	yum >/dev/null 2>&1
+	if [ $? -ne 127 ]; then
+		echo "yum"
+		return 0
+	fi
+
+	apt >/dev/null 2>&1
+	if [ $? -ne 127 ]; then
+		echo "apt"
+		return 0
+	fi
+
+	# debian
+	apt-get >/dev/null 2>&1
+	if [ $? -ne 127 ]; then
+		echo "apt-get"
+		return 0
+	fi
+
+	apk >/dev/null 2>&1
+	if [ $? -ne 127 ]; then
+		echo "apk"
+		return 0
+	fi
+
+	# opensuse
+	zypper >/dev/null 2>&1
+	if [ $? -ne 127 ]; then
+		echo "zypper"
+		return 0
+	fi
+
+	echo "Error: Unable to determine the package manager used by this Linux distro."
+	return 1
+}
+
+getHostName() {
+	# use HOSTNAME as the nodeid
+	if [ ! -z "$HOSTNAME" ]; then
+		echo "$HOSTNAME"
+		return 0
+	fi
+
+	# network node hostname
+	_NODEID="$(uname -n 2>/dev/null)"
+	if [ ! -z "$_NODEID" ]; then
+		echo "$_NODEID"
+		return 0
+	fi
+
+	echo "Error: Unable to determine hostname."
+	return 1
+}
+
+# if you want to source this file, then set the variable PV_DEFINE_INCLUDE to non-empty
+# and then unset it after you source.
+if [ -z "$PV_DEFINE_INCLUDE" ]; then
+	main "$@"
+	exit $?
 fi
-
-RELEASE="$(whatRelease)"
-if [ $? -ne 0 ]; then
-        (>&2 echo "Could not determine Linux release version. Exiting...")
-        exit 1
-fi
-
-CODENAME="$(cat /etc/*-release 2>/dev/null | grep "^DISTRIB_CODENAME=" | cut -d '=' -f2 | tr -d '"')"
-ARCH="$(uname -m)"
-
-echo "#OS"
-echo "#=="
-echo "DISTRO=$DISTRO"
-echo "RELEASE=$RELEASE"
-echo "CODENAME=$CODENAME"
-echo "ARCH=$ARCH"
-echo
-echo "#HOST"
-echo "#===="
-echo "WHOAMI=$(whoami)"
-echo "HOSTNAME=$HOSTNAME"

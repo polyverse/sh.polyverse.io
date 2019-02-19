@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 cat docs/header.txt | grep -v ^# > usage.txt
 
@@ -31,4 +31,8 @@ mkdir -p out/scripts
 
 cp main.sh ./out/
 cp usage.txt ./out/
+cp -a ./keys/. ./out/keys/
 cp -a ./scripts/. ./out/scripts/
+
+# pass gitsha to /register endpoint
+sed -i 's/PV_GITSHA=GITSHA/PV_GITSHA='$(git rev-parse --verify HEAD | cut -c1-7)'/g' ./out/scripts/install

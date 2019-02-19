@@ -1,0 +1,698 @@
+[
+	{
+		"name":"info",
+		"matrix":[
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.6",
+					"PV_X_DISTRO=alpine",
+					"PV_X_FORMAT=apk",
+					"PV_X_RELEASE=3.6",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=apk"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.7",
+					"PV_X_DISTRO=alpine",
+					"PV_X_FORMAT=apk",
+					"PV_X_RELEASE=3.7",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=apk"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.8",
+					"PV_X_DISTRO=alpine",
+					"PV_X_FORMAT=apk",
+					"PV_X_RELEASE=3.8",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=apk"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=multiarch/alpine:i386-v3.8",
+					"PV_X_DISTRO=alpine",
+					"PV_X_FORMAT=apk",
+					"PV_X_RELEASE=3.8",
+					"PV_X_ARCH=x86",
+					"PV_X_PACKAGE_MANAGER=apk"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=centos:6",
+					"PV_X_DISTRO=centos",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=6",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=yum"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=centos:7",
+					"PV_X_DISTRO=centos",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=7",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=yum"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=debian:7.11-slim",
+					"PV_X_DISTRO=debian",
+					"PV_X_FORMAT=deb",
+					"PV_X_RELEASE=7",
+					"PV_X_ARCH=amd64",
+					"PV_X_PACKAGE_MANAGER=apt-get"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=fedora:23",
+					"PV_X_DISTRO=fedora",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=23",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=dnf"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=fedora:24",
+					"PV_X_DISTRO=fedora",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=24",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=dnf"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=opensuse:42.3",
+					"PV_X_DISTRO=opensuse",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=42.3",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=zypper"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=oraclelinux:6",
+					"PV_X_DISTRO=ol",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=6",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=yum"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=registry.access.redhat.com/rhel6.10",
+					"PV_X_DISTRO=rhel",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=6",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=yum"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=registry.access.redhat.com/rhel7.6",
+					"PV_X_DISTRO=rhel",
+					"PV_X_FORMAT=rpm",
+					"PV_X_RELEASE=7",
+					"PV_X_ARCH=x86_64",
+					"PV_X_PACKAGE_MANAGER=yum"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=ubuntu:xenial",
+					"PV_X_DISTRO=ubuntu",
+					"PV_X_FORMAT=deb",
+					"PV_X_RELEASE=xenial",
+					"PV_X_ARCH=amd64",
+					"PV_X_PACKAGE_MANAGER=apt"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=ubuntu:bionic",
+					"PV_X_DISTRO=ubuntu",
+					"PV_X_FORMAT=deb",
+					"PV_X_RELEASE=bionic",
+					"PV_X_ARCH=amd64",
+					"PV_X_PACKAGE_MANAGER=apt"
+				]
+			}
+		],
+		"cmd":"docker run -it --rm -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /opt/pv/scripts/info",
+		"tests":[
+			"! -z \"$(cat $STDOUT | grep ^DISTRO=$PV_X_DISTRO)\"",
+			"! -z \"$(cat $STDOUT | grep ^FORMAT=$PV_X_FORMAT)\"",
+			"! -z \"$(cat $STDOUT | grep ^RELEASE=$PV_X_RELEASE)\"",
+			"! -z \"$(cat $STDOUT | grep ^VERSION_ID=)\"",
+			"! -z \"$(cat $STDOUT | grep ^ARCH=$PV_X_ARCH)\"",
+			"! -z \"$(cat $STDOUT | grep ^PACKAGE_MANAGER=$PV_X_PACKAGE_MANAGER)\"",
+			"$EXIT -eq 0"
+		]
+	},
+	{
+		"name":"install.parseInfo",
+		"source":"$PV_SH_ROOT/scripts/install",
+		"matrix":[
+			{
+				"comment":"test 'sh -s info' with double-quotes around value",
+				"env":[
+					"PV_TEST_FILE=$PV_SH_ROOT/tests/info_1.txt",
+					"PV_X_DISTRO=rhel",
+					"PV_X_HOSTNAME=\"foo bar\""
+				]
+			},
+			{
+				"comment":"test 'sh -s info' with no double-quotes with multi-word values",
+				"env":[
+					"PV_TEST_FILE=$PV_SH_ROOT/tests/info_2.txt",
+					"PV_X_DISTRO=rhel",
+					"PV_X_HOSTNAME=\"foo bar\""
+				]
+			}
+		],
+		"tests":[
+			"\"$(parseInfo DISTRO \"$(cat $PV_TEST_FILE)\")\" == \"$PV_X_DISTRO\"",
+			"\"$(parseInfo HOSTNAME \"$(cat $PV_TEST_FILE)\")\" == \"$PV_X_HOSTNAME\""
+		]
+	},
+	{
+		"name":"install.getKeyInstallationInfo",
+		"matrix":[
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.8",
+					"PV_DISTRO=alpine",
+					"PV_FORMAT=apk",
+					"PV_RELEASE=3.8",
+					"PV_ARCH=x86_64",
+					"PV_X_STDOUT=\"d0959d896ef81e325d631c6b46905108a71c3c2e017b7327328a2c3347580b6f https://repo.polyverse.io/config/apk/3/key /etc/apk/keys/support@polyverse.io-5992017d.rsa.pub\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=centos:7",
+					"PV_DISTRO=centos",
+					"PV_FORMAT=rpm",
+					"PV_RELEASE=7",
+					"PV_ARCH=x86_64",
+					"PV_X_STDOUT=\"fc113ae1cbf1e0ddc74aaca659012e887599cccccdb19294f65d94d4c1048422 https://repo.polyverse.io/config/rpm/7/key /etc/pki/rpm-gpg/RPM-GPG-KEY-Polyverse\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=ubuntu:xenial",
+					"PV_DISTRO=ubuntu",
+					"PV_FORMAT=deb",
+					"PV_RELEASE=xenial",
+					"PV_ARCH=amd64",
+					"PV_X_STDOUT=\"c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c $PV_BASE_URL/keys/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c /etc/apt/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.8",
+					"PV_DISTRO=foobar",
+					"PV_FORMAT=tar",
+					"PV_RELEASE=foobar",
+					"PV_ARCH=foobar",
+					"PV_X_STDOUT=\"Error: getKeyInstallationInfo() doesn't currently support format 'tar'.\"",
+					"PV_X_EXIT=1"
+				]
+			},
+			{
+				"comment":"missing arguments",
+				"env":[
+					"PV_IMAGE=alpine:3.8",
+					"PV_DISTRO=",
+					"PV_FORMAT=",
+					"PV_RELEASE=",
+					"PV_ARCH=",
+					"PV_X_STDOUT=\"Error: getKeyInstallationInfo() requires 6 arguments but received '2'.\"",
+					"PV_X_EXIT=1"
+				]
+			}
+		],
+		"before_test":[
+			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
+			"docker exec -t $CONTAINER_ID sh -c \"$PV_BEFORE_TEST_CMD\""
+		],
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"PV_BASE_URL=$PV_BASE_URL /opt/pv/tests/remote.sh /opt/pv/scripts/install getKeyInstallationInfo some_authkey some_nodeid $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH\"",
+		"tests":[
+			"\"$(cat $STDOUT)\" == \"$PV_X_STDOUT\"",
+			"$EXIT -eq $PV_X_EXIT"
+		],
+		"after_test":[
+			"docker rm -fv $CONTAINER_ID"
+		]
+	},
+	{
+		"name":"install.downloadAndInstallKey",
+		"matrix":[
+			{
+				"env":[
+					"PV_BEFORE_TEST_CMD=\"apk update >/dev/null 2>&1 && apk add curl >/dev/null 2>&1\"",
+					"PV_IMAGE=alpine:3.8",
+					"PV_FORMAT=apk",
+					"PV_KEY_SHA256SUM=d0959d896ef81e325d631c6b46905108a71c3c2e017b7327328a2c3347580b6f",
+					"PV_KEY_URL=https://repo.polyverse.io/config/apk/3/key",
+					"PV_KEY_LOCATION=/etc/apk/keys/support@polyverse.io-5992017d.rsa.pub",
+					"PV_X_STDOUT=\"\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_BEFORE_TEST_CMD=\"apk update >/dev/null 2>&1 && apk add curl >/dev/null 2>&1\"",
+					"PV_IMAGE=alpine:3.8",
+					"PV_FORMAT=foo",
+					"PV_KEY_SHA256SUM=d0959d896ef81e325d631c6b46905108a71c3c2e017b7327328a2c3347580b6f",
+					"PV_KEY_URL=https://repo.polyverse.io/config/apk/3/key",
+					"PV_KEY_LOCATION=/etc/apk/keys/support@polyverse.io-5992017d.rsa.pub",
+					"PV_X_STDOUT=\"Error: downloadAndInstallKey() doesn't support format '$PV_FORMAT'.\"",
+					"PV_X_EXIT=1"
+				]
+			},
+			{
+				"env":[
+					"PV_BEFORE_TEST_CMD=\"apt update -y >/dev/null 2>&1 && apt install -y curl >/dev/null 2>&1\"",
+					"PV_IMAGE=ubuntu:xenial",
+					"PV_FORMAT=deb",
+					"PV_KEY_SHA256SUM=c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c",
+					"PV_KEY_URL=http://git-sh.polyverse.io-kernel.s3-website-us-west-2.amazonaws.com/keys/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c",
+					"PV_KEY_LOCATION=/etc/apt/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c",
+					"PV_X_STDOUT=\"\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_BEFORE_TEST_CMD=\"\"",
+					"PV_IMAGE=centos:6",
+					"PV_FORMAT=rpm",
+					"PV_KEY_SHA256SUM=fc113ae1cbf1e0ddc74aaca659012e887599cccccdb19294f65d94d4c1048422",
+					"PV_KEY_URL=https://repo.polyverse.io/config/rpm/7/key",
+					"PV_KEY_LOCATION=/etc/pki/rpm-gpg/RPM-GPG-KEY-Polyverse",
+					"PV_X_STDOUT=\"\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"comment":"test empty arguments",
+				"env":[
+					"PV_BEFORE_TEST_CMD=\"\"",
+					"PV_IMAGE=centos:6",
+					"PV_FORMAT=rpm",
+					"PV_KEY_SHA256SUM=",
+					"PV_KEY_URL=",
+					"PV_KEY_LOCATION=",
+					"PV_X_STDOUT=\"Error: downloadAndInstallKey() requires 4 arguments but received '1'.\"",
+					"PV_X_EXIT=1"
+				]
+			}
+		],
+		"before_test":[
+			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
+			"docker exec -t $CONTAINER_ID sh -c \"$PV_BEFORE_TEST_CMD\""
+		],
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/install downloadAndInstallKey $PV_FORMAT $PV_KEY_SHA256SUM $PV_KEY_URL $PV_KEY_LOCATION\"",
+		"tests":[
+			"\"$(cat $STDOUT)\" = \"$PV_X_STDOUT\"",
+			"$EXIT -eq $PV_X_EXIT"
+		],
+		"after_test":[
+			"docker rm -fv $CONTAINER_ID"
+		]
+	},
+	{
+		"name":"install.uninstall",
+		"matrix":[
+			{
+				"comment":"test that polyverse'd /etc/apk/repositories is properly undone.",
+				"env":[
+					"PV_REPOFILE=/etc/apk/repositories",
+					"PV_BEFORE_TEST_CMD=\"cp /opt/pv/tests/repo-apk-post.txt $PV_REPOFILE && cp /opt/pv/tests/repo-apk-pre.txt ${PV_REPOFILE}.pvbak\"",
+					"PV_IMAGE=alpine:3.8",
+					"PV_DISTRO=alpine",
+					"PV_FORMAT=apk",
+					"PV_RELEASE=3.8",
+					"PV_ARCH=x86_64",
+					"PV_X_DIFF_FILE=\"/opt/pv/tests/repo-apk-pre.txt\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"comment":"test that a standard /etc/apk/repositories is untouched after uninstall.",
+				"env":[
+					"PV_REPOFILE=/etc/apk/repositories",
+					"PV_BEFORE_TEST_CMD=\"cp /opt/pv/tests/repo-apk-pre.txt $PV_REPOFILE\"",
+					"PV_IMAGE=alpine:3.8",
+					"PV_DISTRO=alpine",
+					"PV_FORMAT=apk",
+					"PV_RELEASE=3.8",
+					"PV_ARCH=x86_64",
+					"PV_X_DIFF_FILE=\"/opt/pv/tests/repo-apk-pre.txt\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"comment":"test that polyverse'd /etc/apt/sources.list is properly undone.",
+				"env":[
+					"PV_REPOFILE=/etc/apt/sources.list",
+					"PV_BEFORE_TEST_CMD=\"cp /opt/pv/tests/repo-ubuntu-post.txt $PV_REPOFILE\"",
+					"PV_IMAGE=ubuntu:xenial",
+					"PV_DISTRO=ubuntu",
+					"PV_FORMAT=deb",
+					"PV_RELEASE=xenial",
+					"PV_ARCH=amd64",
+					"PV_X_DIFF_FILE=\"/opt/pv/tests/repo-ubuntu-pre.txt\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"comment":"test that a standard /etc/apt/sources.list is untouched after uninstall.",
+				"env":[
+					"PV_REPOFILE=/etc/apt/sources.list",
+					"PV_BEFORE_TEST_CMD=\"cp /opt/pv/tests/repo-ubuntu-pre.txt $PV_REPOFILE\"",
+					"PV_IMAGE=ubuntu:xenial",
+					"PV_DISTRO=ubuntu",
+					"PV_FORMAT=deb",
+					"PV_RELEASE=xenial",
+					"PV_ARCH=amd64",
+					"PV_X_DIFF_FILE=\"/opt/pv/tests/repo-ubuntu-pre.txt\"",
+					"PV_X_EXIT=0"
+				]
+			}
+		],
+		"before_test":[
+			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
+			"docker exec -t $CONTAINER_ID sh -c \"$PV_BEFORE_TEST_CMD\""
+		],
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/install uninstall $PV_REPOFILE $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH\"",
+		"tests":[
+			"-z \"$(docker exec -t $CONTAINER_ID sh -c \"diff $PV_REPOFILE $PV_X_DIFF_FILE\")\"",
+			"$EXIT -eq $PV_X_EXIT"
+		],
+		"after_test":[
+			"docker rm -fv $CONTAINER_ID"
+		]
+	},
+	{
+		"name":"install.uninstall_2",
+		"matrix":[
+			{
+				"comment":"test that polyverse'd /etc/yum.repos.d/polyverse.repo is properly removed.",
+				"env":[
+					"PV_REPOFILE=/etc/yum.repos.d/polyverse.repo",
+					"PV_BEFORE_TEST_CMD=\"cp /opt/pv/tests/repo-rpm-post.txt $PV_REPOFILE && ls -al $PV_REPOFILE\"",
+					"PV_IMAGE=centos:6",
+					"PV_DISTRO=centos",
+					"PV_FORMAT=rpm",
+					"PV_RELEASE=6",
+					"PV_ARCH=x86_64",
+					"PV_X_EXIT=0"
+				]
+			}
+		],
+		"before_test":[
+			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
+			"docker exec -t $CONTAINER_ID sh -c \"$PV_BEFORE_TEST_CMD\""
+		],
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/install uninstall $PV_REPOFILE $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH\"",
+		"tests":[
+			"! -f \"$PV_REPOFILE\"",
+			"$EXIT -eq $PV_X_EXIT"
+		],
+		"after_test":[
+			"docker rm -fv $CONTAINER_ID"
+		]
+	},
+	{
+		"name":"install.uninstall_3",
+		"matrix":[
+			{
+				"comment":"test unknown format handling.",
+				"env":[
+					"PV_IMAGE=alpine:3.8",
+					"PV_DISTRO=alpine",
+					"PV_FORMAT=apk",
+					"PV_RELEASE=3.8",
+					"PV_ARCH=x86_64",
+					"PV_REPOFILE=/etc/apk/foobar",
+					"PV_X_STDOUT=\"Error: uninstall() doesn't know what to do with repo file '/etc/apk/foobar'.\"",
+					"PV_X_EXIT=1"
+				]
+			},
+			{
+				"comment":"test incorrect number of arguments.",
+				"env":[
+					"PV_IMAGE=alpine:3.8",
+					"PV_DISTRO=alpine",
+					"PV_FORMAT=apk",
+					"PV_RELEASE=3.8",
+					"PV_ARCH=x86_64",
+					"PV_REPOFILE=",
+					"PV_X_STDOUT=\"Error: uninstall() expecting 5 arguments, but received 4.\"",
+					"PV_X_EXIT=1"
+				]
+			}
+
+		],
+		"before_test":[
+			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\""
+		],
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/install uninstall $PV_REPOFILE $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH\"",
+		"tests":[
+			"\"$(cat $STDOUT)\" == \"$PV_X_STDOUT\"",
+			"$EXIT -eq $PV_X_EXIT"
+		],
+		"after_test":[
+			"docker rm -fv $CONTAINER_ID"
+		]
+	},
+	{
+		"name":"install.generateDefaultPFRACs",
+		"source":"$PV_SH_ROOT/scripts/install",
+		"matrix":[
+			{
+				"env":[
+					"PV_ARGS=\"alpine apk 3.6 x86_64\"",
+					"PV_X_STDOUT=\"alpine_apk_3.6_x86--64_main alpine_apk_3.6_x86--64_community\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"alpine apk 3.7 x86_64\"",
+					"PV_X_STDOUT=\"alpine_apk_3.7_x86--64_main alpine_apk_3.7_x86--64_community\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"alpine apk 3.8 x86_64\"",
+					"PV_X_STDOUT=\"alpine_apk_3.8_x86--64_main alpine_apk_3.8_x86--64_community\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"alpine apk 3.8 x86\"",
+					"PV_X_STDOUT=\"alpine_apk_3.8_x86_main alpine_apk_3.8_x86_community\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"centos rpm 6 x86_64\"",
+					"PV_X_STDOUT=\"centos_rpm_6_x86--64_os centos_rpm_6_x86--64_updates\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"centos rpm 7 x86_64\"",
+					"PV_X_STDOUT=\"centos_rpm_7_x86--64_os centos_rpm_7_x86--64_updates\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"ubuntu deb xenial amd64\"",
+					"PV_X_STDOUT=\"ubuntu_deb_xenial_binary--amd64_main ubuntu_deb_xenial-updates_binary--amd64_main ubuntu_deb_xenial-security_binary--amd64_main\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"comment":"test missing arguments",
+				"env":[
+					"PV_ARGS=",
+					"PV_X_STDOUT=\"Error: generateDefaultPFRACs() missing required arguments.\"",
+					"PV_X_EXIT=1"
+				]
+			},
+			{
+				"comment":"test empty argument",
+				"env":[
+					"PV_ARGS=\"centos \"\" 6 x86_64\"",
+					"PV_X_STDOUT=\"Error: generateDefaultPFRACs() missing required arguments.\"",
+					"PV_X_EXIT=1"
+				]
+			},
+			{
+				"comment":"test an unsupported distro (oracle linux)",
+				"env":[
+					"PV_ARGS=\"ol rpm 6 x86_64\"",
+					"PV_X_STDOUT=\"Error: generateDefaultPFRACs() doesn't currently support distro 'ol'.\"",
+					"PV_X_EXIT=1"
+				]
+			}
+		],
+		"cmd":"generateDefaultPFRACs $PV_ARGS",
+		"tests":[
+			"\"$(cat $STDOUT)\" == \"$PV_X_STDOUT\"",
+			"$EXIT -eq $PV_X_EXIT"
+		]
+	},
+	{
+		"name":"install.generateComponentsPFRACs",
+		"source":"$PV_SH_ROOT/scripts/install",
+		"matrix":[
+			{
+				"env":[
+					"PV_ARGS=\"alpine apk 3.6 x86_64 \"kernel\"\"",
+					"PV_X_PFRAC=\"Error: component 'kernel' not supported on distro 'alpine'.\"",
+					"PV_X_EXIT=1"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"centos rpm 6 x86_64 \"kernel\"\"",
+					"PV_X_PFRAC=\"centos_rpm_6_x86--64_os-kernel centos_rpm_6_x86--64_updates-kernel\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"centos rpm 7 x86_64 \"kernel\"\"",
+					"PV_X_PFRAC=\"centos_rpm_7_x86--64_os-kernel centos_rpm_7_x86--64_updates-kernel\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"fedora rpm 23 x86_64 \"kernel\"\"",
+					"PV_X_PFRAC=\"fedora_rpm_23_x86--64_os-kernel fedora_rpm_23_x86--64_updates-kernel\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"fedora rpm 29 x86_64 \"kernel\"\"",
+					"PV_X_PFRAC=\"fedora_rpm_29_x86--64_os-kernel fedora_rpm_29_x86--64_updates-kernel\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"ubuntu apt xenial amd64 \"kernel\"\"",
+					"PV_X_PFRAC=\"Error: component 'kernel' not supported on distro 'ubuntu'.\"",
+					"PV_X_EXIT=1"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"ubuntu apt xenial amd64 epel\"",
+					"PV_X_PFRAC=\"Error: unknown component 'epel'.\"",
+					"PV_X_EXIT=1"
+				]
+			}
+		],
+		"cmd":"generateComponentsPFRACs $PV_ARGS",
+		"tests":[
+			"\"$(cat $STDOUT)\" == \"$PV_X_PFRAC\"",
+			"$EXIT -eq $PV_X_EXIT"
+		]
+	},
+	{
+		"name":"install.registerPFRAC",
+		"source":"$PV_SH_ROOT/scripts/install",
+		"matrix":[
+			{
+				"env":[
+					"PV_ARGS=\"hwTgPAGCyNGYDmiRAHLcdhBl3 someNodeId alpine 3.8.1 alpine_apk_3.8_x86--64_main d0959d896ef81e325d631c6b46905108a71c3c2e017b7327328a2c3347580b6f someGitSha\"",
+					"PV_X_GREP=\"^https://alpine:.*@repo\\.polyverse\\.io/apk/alpine/3\\.8/main\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"hwTgPAGCyNGYDmiRAHLcdhBl3 someNodeId centos 6.10 centos_rpm_6_x86--64_os fc113ae1cbf1e0ddc74aaca659012e887599cccccdb19294f65d94d4c1048422 someGitSha\"",
+					"PV_X_GREP=\"^baseurl=https://polyverse_customer:.*@repo\\.polyverse\\.io/rpm/centos/6/os/x86_64\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_ARGS=\"hwTgPAGCyNGYDmiRAHLcdhBl3 someNodeId ubuntu 16.04 ubuntu_deb_xenial_binary--amd64_main c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c someGitSha\"",
+					"PV_X_GREP=\"^deb https://ubuntu:.*@repo\\.polyverse\\.io/deb/ubuntu/xenial/binary_amd64 main/\"",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"comment":"test non-PFRAC-compliant string.",
+				"env":[
+					"PV_ARGS=\"hwTgPAGCyNGYDmiRAHLcdhBl3 someNodeId centos 6.10 NOT_PFRAC_STRING fc113ae1cbf1e0ddc74aaca659012e887599cccccdb19294f65d94d4c1048422 someGitSha\"",
+					"PV_X_GREP=\"^Error: Unable to properly parse 'NOT_PFRAC_STRING'.\"",
+					"PV_X_EXIT=1"
+				]
+			},
+			{
+				"comment":"test PFRAC that hasn't been properly encoded.",
+				"env":[
+					"PV_ARGS=\"hwTgPAGCyNGYDmiRAHLcdhBl3 someNodeId centos 6.10 centos_rpm_6.10_x86_64_os fc113ae1cbf1e0ddc74aaca659012e887599cccccdb19294f65d94d4c1048422 someGitSha\"",
+					"PV_X_GREP=\"^Error: Unable to properly parse 'centos_rpm_6.10_x86_64_os'.\"",
+					"PV_X_EXIT=1"
+				]
+			},
+			{
+				"comment":"test bad authkey.",
+				"env":[
+					"PV_ARGS=\"BAD_AUTH_KEY someNodeId centos 6.10 centos_rpm_6_x86--64_os fc113ae1cbf1e0ddc74aaca659012e887599cccccdb19294f65d94d4c1048422 someGitSha\"",
+					"PV_X_GREP=\"^Registration error: The authentication key provided is not valid. Registration denied. Please contact support@polyverse.io with reference #.*\\.$\"",
+					"PV_X_EXIT=1"
+				]
+			},
+			{
+				"comment":"test unsupported distro.",
+				"env":[
+					"PV_ARGS=\"hwTgPAGCyNGYDmiRAHLcdhBl3 someNodeId ol 6 ol_rpm_6_x86--64_default fc113ae1cbf1e0ddc74aaca659012e887599cccccdb19294f65d94d4c1048422 someGitSha\"",
+					"PV_X_GREP=\"^Registration error: We don't currently support 'default' for ol 6. Please contact sales@polyverse.io if you are interested in having us add it to our offering.\"",
+					"PV_X_EXIT=1"
+				]
+			}
+		],
+		"cmd":"registerPFRAC $PV_ARGS",
+		"tests":[
+			"! -z \"$(cat $STDOUT | grep \"$PV_X_GREP\")\"",
+			"$EXIT -eq $PV_X_EXIT"
+		]
+	}
+]

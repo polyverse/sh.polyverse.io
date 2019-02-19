@@ -1,0 +1,16 @@
+[
+	{
+		"name":"gitsha",
+		"matrix":[
+			{
+				"env":[
+					"PV_GITSHA=$(git rev-parse --verify HEAD | cut -c1-7)"
+				]
+			}
+		],
+		"cmd":"cat $PV_SH_ROOT/out/scripts/install",
+		"tests":[
+			"! -z \"$(cat \"$STDOUT\" | grep $PV_GITSHA)\""
+		]
+	}
+]

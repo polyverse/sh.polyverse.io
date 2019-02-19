@@ -1,0 +1,10 @@
+https://alpine:eyJ2IjoyLjEsIkRhdGEiOnsibmlkIjoiZDhlYjJmMDkiLCJvaWQiOiJ0cmF2aXNhdHBvbHl2ZXJzZWRvdGlvIiwidGlkIjoiSWFEU1p6SzAifSwicyI6Im9PTHpLYWFOalZ4dGJtcExQaW1pV0ZXcXo0RzNRWURCNHFsZEFRMWM0VVU9In0=@repo.polyverse.io/apk/alpine/3.8/main
+#http://mirrors.polyverse.io/alpine/v3.8/main
+#
+https://alpine:eyJ2IjoyLjEsIkRhdGEiOnsibmlkIjoiZmMxZjdiNzQiLCJvaWQiOiJ0cmF2aXNhdHBvbHl2ZXJzZWRvdGlvIiwidGlkIjoibHdkb3JCb1UifSwicyI6IkwxaHVJWWxrYUd0STZpK2pPRS8rMmhFRk9MZ0hGV1Fabis1TE4wRHFJSHc9In0=@repo.polyverse.io/apk/alpine/3.8/community
+#http://mirrors.polyverse.io/alpine/v3.8/community
+#
+#
+## comment
+#http://dl-cdn.alpinelinux.org/alpine/v3.8/main
+#http://dl-cdn.alpinelinux.org/alpine/v3.8/community
