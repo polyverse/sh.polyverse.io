@@ -1,0 +1,37 @@
+[polyverse-os]
+name=polyverse-$releasever os
+baseurl=https://polyverse_customer:eyJ2IjoyLjEsIkRhdGEiOnsibmlkIjoiNDE3YzhiYTIiLCJvaWQiOiJ0cmF2aXNhdHBvbHl2ZXJzZWRvdGlvIiwidGlkIjoiNWtDWUt6NnYifSwicyI6IkpYVTlzWlhmeU1VV2dCNGtBTEVSV2IwTlhNbVgweUprTUgxRzlCTzVESEE9In0=@repo.polyverse.io/rpm/centos/6/os/x86_64
+gpgcheck=0
+keepcache = 0
+enabled = 1
+cost = 1
+
+
+[polyverse-mirror-os]
+name=polyverse-mirror-$releasever os
+baseurl=https://polyverse_customer:eyJ2IjoyLjEsIkRhdGEiOnsibmlkIjoiNDE3YzhiYTIiLCJvaWQiOiJ0cmF2aXNhdHBvbHl2ZXJzZWRvdGlvIiwidGlkIjoiNWtDWUt6NnYifSwicyI6IkpYVTlzWlhmeU1VV2dCNGtBTEVSV2IwTlhNbVgweUprTUgxRzlCTzVESEE9In0=@mirrors.polyverse.io/centos/6/os/$basearch
+gpgcheck=0
+keepcache = 0
+enabled = 1
+cost = 2
+
+[polyverse-updates]
+name=polyverse-$releasever updates
+baseurl=https://polyverse_customer:eyJ2IjoyLjEsIkRhdGEiOnsibmlkIjoiYTAwMjkyOWEiLCJvaWQiOiJ0cmF2aXNhdHBvbHl2ZXJzZWRvdGlvIiwidGlkIjoiMHZFaWNXS2YifSwicyI6InVIUWNQd3J0ZUdXOVBpVXAzS0k1amJiV0hZT2dWSXNHRmNOSGFPK2Zld0E9In0=@repo.polyverse.io/rpm/centos/6/updates/x86_64
+gpgcheck=0
+keepcache = 0
+enabled = 1
+cost = 1
+
+
+
+
+[polyverse-mirror-updates]
+name=polyverse-mirror-$releasever updates
+baseurl=https://polyverse_customer:eyJ2IjoyLjEsIkRhdGEiOnsibmlkIjoiYTAwMjkyOWEiLCJvaWQiOiJ0cmF2aXNhdHBvbHl2ZXJzZWRvdGlvIiwidGlkIjoiMHZFaWNXS2YifSwicyI6InVIUWNQd3J0ZUdXOVBpVXAzS0k1amJiV0hZT2dWSXNHRmNOSGFPK2Zld0E9In0=@mirrors.polyverse.io/centos/6/updates/$basearch
+gpgcheck=0
+keepcache = 0
+enabled = 1
+cost = 2
+
+

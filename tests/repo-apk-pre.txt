@@ -1,0 +1,3 @@
+# comment
+http://dl-cdn.alpinelinux.org/alpine/v3.8/main
+http://dl-cdn.alpinelinux.org/alpine/v3.8/community
