@@ -254,7 +254,7 @@
 			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
 			"docker exec -t $CONTAINER_ID sh -c \"$PV_BEFORE_TEST_CMD\""
 		],
-		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/install getKeyInstallationInfo some_authkey some_nodeid $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH\"",
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"PV_BASE_URL=$PV_BASE_URL /opt/pv/tests/remote.sh /opt/pv/scripts/install getKeyInstallationInfo some_authkey some_nodeid $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH\"",
 		"tests":[
 			"\"$(cat $STDOUT)\" == \"$PV_X_STDOUT\"",
 			"$EXIT -eq $PV_X_EXIT"
