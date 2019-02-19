@@ -129,7 +129,7 @@ main() {
 
 	# support for --add-components (e.g., "--add-components kernel")
 	# example component PFRAC: "centos_rpm_6_x86--64_os-kernel centos_rpm_6_x86--64_updates-kernel"
-	$PV_ADDITIONAL_PFRACs="$(generateComponentsPFRACs "$PV_DISTRO" "$PV_FORMAT" "$PV_RELEASE" "$PV_ARCH" "$PV_COMPONENTS")"
+	PV_ADDITIONAL_PFRACs="$(generateComponentsPFRACs "$PV_DISTRO" "$PV_FORMAT" "$PV_RELEASE" "$PV_ARCH" "$PV_COMPONENTS")"
 	if [ $? -ne 0 ]; then _echo "$PV_ADDITIONAL_PFRACs"; return 1; fi
 	# PV_ADDITIONAL_PFRACs contains the additional PFRACs (if any)
 	PV_PFRACs="$PV_PFRACs $PV_ADDITIONAL_PFRACs"
