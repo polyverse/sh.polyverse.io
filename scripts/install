@@ -27,7 +27,7 @@ main() {
 	fi
 
 	if [ $(id -u) -ne 0 ]; then
-		_echo "This script must be run as root. Please try running this again as a sudo or root user."
+		_echo "This script must be run as root. Please try running this again with sudo or as a root user."
 		return 1
 	fi
 
@@ -36,10 +36,13 @@ main() {
 	_echo
 
 	# process command-line, which only sets global PV_ variables
+	# NOTE: doesn't follow the RESULT=$(parseCommandLine "$@") technique because
+	# it cannot be in a subshell since it sets variables; error messages are
+	# directly displayed and exits if return value is non-zero.
 	parseCommandLine "$@"
 	if [ $? -ne 0 ]; then return 1; fi
 
-	# the only PV_ variable that's required at this point is the authkey (or --uninstall was specified)
+	# the only PV_ variable that's required at this point is the authkey (unless --uninstall was specified)
 	if [ -z "$PV_AUTHKEY" ] && [ -z "$PV_UNINSTALL" ]; then
 		usage
 		return 1
@@ -47,7 +50,7 @@ main() {
 
 	_echo "Determining Linux distro info..."
 	# `curl https://sh.polyverse.io | sh -s info` to collect linux distro details; response looks like:
-	# 
+	#
 	# DISTRO=rhel
 	# RELEASE=6
 	# VERSION_ID=6.10
@@ -58,10 +61,10 @@ main() {
 	#
 	PV_INFO="$(curl -s $PV_BASE_URL/main.sh | PV_BASE_URL=$PV_BASE_URL sh -s info)"
 	if [ $? -ne 0 ]; then
-		_echo "Unable to determine Linux distribution details: $PV_INFO. Please contact support@polyverse.io."
+		_echo "Unable to determine Linux distro info: $PV_INFO. Please contact support@polyverse.io."
 		return 1
 	fi
-	# set variables based on sh.polyverse.io info output unless already set via command-line
+	# set variables based on sh.polyverse.io info result unless already set via command-line
 	if [ -z "$PV_NODEID" ]; then
 		PV_NODEID="$(parseInfo HOSTNAME "$PV_INFO")"
 		if [ $? -ne 0 ]; then _echo "$PV_NODEID"; return 1; fi
@@ -112,8 +115,8 @@ main() {
 	if [ $? -ne 0 ]; then _echo "$RESULT"; return 1; fi
 	# return code: 0, stdout: "<KEY_SHA256> <KEY_DOWNLOAD_URL> <KEY_INSTALL_LOCATION>"
 	PV_KEY_SHA256="$(echo "$RESULT" | awk '{print $1}')"
-	PV_KEY_URL="$(echo "$RESULT" | awk '{print $2}')"
-	PV_KEY_LOCATION="$(echo "$RESULT" | awk '{print $3}')"
+	PV_KEY_DOWNLOAD_URL="$(echo "$RESULT" | awk '{print $2}')"
+	PV_KEY_INSTALL_LOCATION="$(echo "$RESULT" | awk '{print $3}')"
 
 	# generate the default PFRACs for this distro/format/release/arch
 	# example default PFRACs: "centos_rpm_7_x86--64_os centos_rpm_7_x86--64_updates"
@@ -125,10 +128,11 @@ main() {
 	fi
 
 	# support for --add-components (e.g., "--add-components kernel")
-	RESULT="$(generateComponentsPFRACs "$PV_DISTRO" "$PV_FORMAT" "$PV_RELEASE" "$PV_ARCH" "$PV_COMPONENTS")"
-	if [ $? -ne 0 ]; then _echo "$RESULT"; return 1; fi
-	# RESULT contains the additional PFRACs (if any)
-	PV_PFRACs="$PV_PFRACs $RESULT"
+	# example component PFRAC: "centos_rpm_6_x86--64_os-kernel centos_rpm_6_x86--64_updates-kernel"
+	$PV_ADDITIONAL_PFRACs="$(generateComponentsPFRACs "$PV_DISTRO" "$PV_FORMAT" "$PV_RELEASE" "$PV_ARCH" "$PV_COMPONENTS")"
+	if [ $? -ne 0 ]; then _echo "$PV_ADDITIONAL_PFRACs"; return 1; fi
+	# PV_ADDITIONAL_PFRACs contains the additional PFRACs (if any)
+	PV_PFRACs="$PV_PFRACs $PV_ADDITIONAL_PFRACs"
 
 	_debugln "PV_PFRACs: $PV_PFRACs"
 
@@ -144,7 +148,7 @@ main() {
 	_debugln "REPO_FILE_CONTENTS: $REPO_FILE_CONTENTS"
 
 	_echo "Installing Polyverse public key..."
-	RESULT="$(downloadAndInstallKey "$PV_FORMAT" "$PV_KEY_SHA256" "$PV_KEY_URL" "$PV_KEY_LOCATION")"
+	RESULT="$(downloadAndInstallKey "$PV_FORMAT" "$PV_KEY_SHA256" "$PV_KEY_DOWNLOAD_URL" "$PV_KEY_INSTALL_LOCATION")"
 	if [ $? -ne 0 ]; then _echo "$RESULT"; return 1; fi
 
 	# hook to install any additional required packages; currently, only apt-transport-https needs to be installed for ubuntu.
@@ -180,6 +184,22 @@ _debugln() {
 	if [ ! -z "$PV_DEBUG" ]; then
 		_echo "$1"
 	fi
+}
+
+encode() {
+	str="$1"
+	str="$(echo $str | sed 's/ /++/g')"
+	str="$(echo $str | sed 's/_/--/g')"
+	str="$(echo $str | sed 's/\//\^\^/g')"
+	echo "$str"
+}
+
+decode() {
+	str="$1"
+	str="$(echo $str | sed 's/++/ /g')"
+	str="$(echo $str | sed 's/--/_/g')"
+	str="$(echo $str | sed 's/\^\^/\//g')"
+	echo "$str"
 }
 
 usage() {
@@ -254,26 +274,6 @@ displayPostUninstallMessage() {
 	return 0
 }
 
-parseInfo() {
-	_KEY="$1"
-	_INFO="$2"
-
-	if [ -z "${_KEY}" ] || [ -z "${_INFO}" ]; then
-		echo "parseInfo() missing required arguments."
-		return 1
-	fi
-
-	_VAL="$(echo "$_INFO" | grep "^${_KEY}=" | cut -d "=" -f2 | tr -d '"')"
-
-	if [ -z "${_VAL}" ]; then
-		echo "parseInfo() info value missing key '${_KEY}'."
-		return 1
-	fi
-
-	echo "${_VAL}"
-	return 0
-}
-
 parseCommandLine() {
 	if [ "$1" = "install" ]; then
 		shift
@@ -334,6 +334,54 @@ parseCommandLine() {
 	return 0
 }
 
+parseInfo() {
+	_KEY="$1"
+	_INFO="$2"
+
+	if [ -z "${_KEY}" ] || [ -z "${_INFO}" ]; then
+		echo "parseInfo() missing required arguments."
+		return 1
+	fi
+
+	_VAL="$(echo "$_INFO" | grep "^${_KEY}=" | cut -d "=" -f2 | tr -d '"')"
+
+	if [ -z "${_VAL}" ]; then
+		echo "parseInfo() info value missing key '${_KEY}'."
+		return 1
+	fi
+
+	echo "${_VAL}"
+	return 0
+}
+
+getRepoFileLocation() {
+	if [ $# -ne 1 ]; then
+		echo "Error: getRepoFileLocation() expected 1 argument but received $#."
+		return 1
+	fi
+
+	_FORMAT="$1"
+
+	case "${_FORMAT}" in
+		apk)
+			_FILENAME="/etc/apk/repositories"
+			;;
+		deb)
+			_FILENAME="/etc/apt/sources.list"
+			;;
+		rpm)
+			_FILENAME="/etc/yum.repos.d/polyverse.repo"
+			;;
+		*)
+			echo "Error: getRepoFileLocation() unhandled format '${_FORMAT}'."
+			return 1
+			;;
+	esac
+
+	echo "${_FILENAME}"
+	return 0
+}
+
 #===============================================================================
 #
 #  getKeyInstallationInfo $1:AUTHKEY $2:NODEID $3:DISTRO $4:FORMAT $5:RELEASE $6:ARCH
@@ -384,79 +432,6 @@ getKeyInstallationInfo() {
 	esac
 
 	echo "${_KEY_SHA256} ${_KEY_DOWNLOAD_URL} ${_KEY_INSTALL_LOCATION}"
-	return 0
-}
-
-downloadAndInstallKey() {
-	_FORMAT="$1"
-	_KEY_SHA256SUM="$2"
-	_KEY_URL="$3"
-	_KEY_INSTALL_LOCATION="$4"
-
-	if [ $# -ne 4 ]; then
-		echo "Error: downloadAndInstallKey() requires 4 arguments but received '$#'."
-		return 1
-	fi
-
-	curl -s --fail ${_KEY_URL} -o ${_KEY_INSTALL_LOCATION}
-	if [ $? -ne 0 ]; then
-		echo "Error: 'curl ${_KEY_URL} -o ${_KEY_INSTALL_LOCATION}' returned non-zero."
-		return 1
-	fi
-
-	_CHECK_SHA256SUM="$(sha256sum ${_KEY_INSTALL_LOCATION} | awk '{print $1}')"
-	if [ "${_CHECK_SHA256SUM}" != "${_KEY_SHA256SUM}" ]; then
-		echo "Error: sha256sum of '${_KEY_INSTALL_LOCATION}' is '${_CHECK_SHA256SUM}'; expecting '${_KEY_SHA256SUM}'."
-		return 1
-	fi
-
-	case "${_FORMAT}" in
-		apk|rpm)
-			# do nothing
-			;;
-		deb)
-			apt-key add ${_KEY_INSTALL_LOCATION} >/dev/null 2>&1
-			if [ $? -ne 0 ]; then
-				echo "Error: 'apt-key add ${_KEY_INSTALL_LOCATION} returned non-zero."
-				return 1
-			fi
-			if [ -z "$(apt-key list | grep Polyverse)" ]; then
-				echo "Error: 'apt-key list' doesn't show a key from Polyverse."
-				return 1
-			fi
-			rm -f ${_KEY_INSTALL_LOCATION} >/dev/null 2>&1
-			;;
-		*)
-			echo "Error: downloadAndInstallKey() doesn't support format '${_FORMAT}'."
-			return 1
-			;;
-	esac
-
-	return 0
-}
-
-installRequiredPackages() {
-	if [ $# -ne 4 ]; then
-		echo "Error: installRequiredPackages() requires 4 arguments but received '$#'."
-		return 1
-	fi
-
-	_DISTRO="$1"
-	_FORMAT="$2"
-	_RELEASE="$3"
-	_ARCH="$4"
-
-	case "${_FORMAT}" in
-		deb)
-			        _echo "Installing apt-transport-https to support the https repo endpoint..."
-				apt-get -qq install apt-transport-https -y >/dev/null 2>&1
-				if [ $? -ne 0 ]; then
-					echo "Error: command 'apt-get -qq install apt-transport-https -y' returned non-zero."
-					return 1
-				fi
-				;;
-	esac
-
 	return 0
 }
 
@@ -613,93 +588,76 @@ registerPFRAC() {
 	return 0
 }
 
-encode() {
-	str="$1"
-	str="$(echo $str | sed 's/ /++/g')"
-	str="$(echo $str | sed 's/_/--/g')"
-	str="$(echo $str | sed 's/\//\^\^/g')"
-	echo "$str"
-}
+downloadAndInstallKey() {
+	_FORMAT="$1"
+	_KEY_SHA256SUM="$2"
+	_KEY_URL="$3"
+	_KEY_INSTALL_LOCATION="$4"
 
-decode() {
-	str="$1"
-	str="$(echo $str | sed 's/++/ /g')"
-	str="$(echo $str | sed 's/--/_/g')"
-	str="$(echo $str | sed 's/\^\^/\//g')"
-	echo "$str"
-}
-
-getRepoFileLocation() {
-	if [ $# -ne 1 ]; then
-		echo "Error: getRepoFileLocation() expected 1 argument but received $#."
+	if [ $# -ne 4 ]; then
+		echo "Error: downloadAndInstallKey() requires 4 arguments but received '$#'."
 		return 1
 	fi
 
-	_FORMAT="$1"
+	curl -s --fail ${_KEY_URL} -o ${_KEY_INSTALL_LOCATION}
+	if [ $? -ne 0 ]; then
+		echo "Error: 'curl ${_KEY_URL} -o ${_KEY_INSTALL_LOCATION}' returned non-zero."
+		return 1
+	fi
+
+	_CHECK_SHA256SUM="$(sha256sum ${_KEY_INSTALL_LOCATION} | awk '{print $1}')"
+	if [ "${_CHECK_SHA256SUM}" != "${_KEY_SHA256SUM}" ]; then
+		echo "Error: sha256sum of '${_KEY_INSTALL_LOCATION}' is '${_CHECK_SHA256SUM}'; expecting '${_KEY_SHA256SUM}'."
+		return 1
+	fi
 
 	case "${_FORMAT}" in
-		apk)
-			_FILENAME="/etc/apk/repositories"
+		apk|rpm)
+			# do nothing
 			;;
 		deb)
-			_FILENAME="/etc/apt/sources.list"
-			;;
-		rpm)
-			_FILENAME="/etc/yum.repos.d/polyverse.repo"
+			apt-key add ${_KEY_INSTALL_LOCATION} >/dev/null 2>&1
+			if [ $? -ne 0 ]; then
+				echo "Error: 'apt-key add ${_KEY_INSTALL_LOCATION} returned non-zero."
+				return 1
+			fi
+			if [ -z "$(apt-key list | grep Polyverse)" ]; then
+				echo "Error: 'apt-key list' doesn't show a key from Polyverse."
+				return 1
+			fi
+			rm -f ${_KEY_INSTALL_LOCATION} >/dev/null 2>&1
 			;;
 		*)
-			echo "Error: getRepoFileLocation() unhandled format '${_FORMAT}'."
+			echo "Error: downloadAndInstallKey() doesn't support format '${_FORMAT}'."
 			return 1
 			;;
 	esac
 
-	echo "${_FILENAME}"
 	return 0
 }
 
-uninstall() {
-	if [ $# -ne 1 ]; then
-		echo "Error: uninstall() expecting 1 argument, but received $#."
+installRequiredPackages() {
+	if [ $# -ne 4 ]; then
+		echo "Error: installRequiredPackages() requires 4 arguments but received '$#'."
 		return 1
 	fi
- 
-	_REPOFILE_LOCATION="$1"
 
-	_CMD=""
-	case "${_REPOFILE_LOCATION}" in
-		"/etc/apk/repositories")
-			if [ -f "${_REPOFILE_LOCATION}.pvbak" ]; then
-				_CMD="cp \"${_REPOFILE_LOCATION}.pvbak\" \"${_REPOFILE_LOCATION}\""
-			fi
-			_POST_UNINSTALL_CMD="apk update && apk upgrade --no-cache --available"
-			;;
-		"/etc/apt/sources.list")
-			# remove all lines that contain "polyveres" (case-insensitive) && remove all blank lines at the top of the file
-			_CMD="sed -i 's/^.*polyverse.*$//ig' \"${_REPOFILE_LOCATION}\" && sed -i '/./,\$!d' \"${_REPOFILE_LOCATION}\""
-			_POST_UNINSTALL_CMD="apt-get update -y && apt-get install -y --reinstall \$(dpkg --get-selections | awk '{print \$1}')"
-			;;
-		"/etc/yum.repos.d/polyverse.repo")
-			# if the file exists, just remove it.
-			if [ -f "${_REPOFILE_LOCATION}" ]; then
-				_CMD="rm -f ${_REPOFILE_LOCATION}"
-			fi
-			_POST_UNINSTALL_CMD="yum update -y && yum reinstall -y \*"
-			;;
-		*)
-			echo "Error: uninstall() doesn't know what to do with repo file '${_REPOFILE_LOCATION}'."
-			return 1
-			;;
+	_DISTRO="$1"
+	_FORMAT="$2"
+	_RELEASE="$3"
+	_ARCH="$4"
+
+	case "${_FORMAT}" in
+		deb)
+			        _echo "Installing apt-transport-https to support the https repo endpoint..."
+				apt-get -qq install apt-transport-https -y >/dev/null 2>&1
+				if [ $? -ne 0 ]; then
+					echo "Error: command 'apt-get -qq install apt-transport-https -y' returned non-zero."
+					return 1
+				fi
+				;;
 	esac
 
-	if [ ! -z "${_CMD}" ]; then
-		_RESULT="$(eval "${_CMD} 2>&1")"
-		if [ $? -ne 0 ]; then
-			_echo "Error: command '${_CMD}' returned non-zero: ${_RESULT}"
-			return 1
-		fi
-	fi
-
-	echo "${_POST_UNINSTALL_CMD}"
 	return 0
 }
 
@@ -737,7 +695,7 @@ install() {
 
 			# make sure mirrors.polyverse.io uses http instead of https
 			sed -i 's/^https.*mirrors\.polyverse\.io/http:\/\/mirrors.polyverse.io/g' ${_REPOFILE_LOCATION}
-        
+
 			# Comment out all the lines that aren't repo.polyverse.io. After re-installing all packages, user must remove #
 			sed -in '/repo.polyverse.io/! s/^/#/' ${_REPOFILE_LOCATION}
 
@@ -781,6 +739,52 @@ install() {
 	esac
 
 	echo "${_POST_INSTALL_CMD}"
+	return 0
+}
+
+uninstall() {
+	if [ $# -ne 1 ]; then
+		echo "Error: uninstall() expecting 1 argument, but received $#."
+		return 1
+	fi
+
+	_REPOFILE_LOCATION="$1"
+
+	_CMD=""
+	case "${_REPOFILE_LOCATION}" in
+		"/etc/apk/repositories")
+			if [ -f "${_REPOFILE_LOCATION}.pvbak" ]; then
+				_CMD="cp \"${_REPOFILE_LOCATION}.pvbak\" \"${_REPOFILE_LOCATION}\""
+			fi
+			_POST_UNINSTALL_CMD="apk update && apk upgrade --no-cache --available"
+			;;
+		"/etc/apt/sources.list")
+			# remove all lines that contain "polyveres" (case-insensitive) && remove all blank lines at the top of the file
+			_CMD="sed -i 's/^.*polyverse.*$//ig' \"${_REPOFILE_LOCATION}\" && sed -i '/./,\$!d' \"${_REPOFILE_LOCATION}\""
+			_POST_UNINSTALL_CMD="apt-get update -y && apt-get install -y --reinstall \$(dpkg --get-selections | awk '{print \$1}')"
+			;;
+		"/etc/yum.repos.d/polyverse.repo")
+			# if the file exists, just remove it.
+			if [ -f "${_REPOFILE_LOCATION}" ]; then
+				_CMD="rm -f ${_REPOFILE_LOCATION}"
+			fi
+			_POST_UNINSTALL_CMD="yum update -y && yum reinstall -y \*"
+			;;
+		*)
+			echo "Error: uninstall() doesn't know what to do with repo file '${_REPOFILE_LOCATION}'."
+			return 1
+			;;
+	esac
+
+	if [ ! -z "${_CMD}" ]; then
+		_RESULT="$(eval "${_CMD} 2>&1")"
+		if [ $? -ne 0 ]; then
+			_echo "Error: command '${_CMD}' returned non-zero: ${_RESULT}"
+			return 1
+		fi
+	fi
+
+	echo "${_POST_UNINSTALL_CMD}"
 	return 0
 }
 
