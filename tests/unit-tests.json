@@ -221,8 +221,8 @@
 					"PV_DISTRO=ubuntu",
 					"PV_FORMAT=deb",
 					"PV_RELEASE=xenial",
-					"PV_ARCH=x86_64",
-					"PV_X_STDOUT=\"c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c http://git-sh.polyverse.io-kernel.s3-website-us-west-2.amazonaws.com/keys/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c /etc/apt/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c\"",
+					"PV_ARCH=amd64",
+					"PV_X_STDOUT=\"c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c $PV_BASE_URL/keys/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c /etc/apt/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c\"",
 					"PV_X_EXIT=0"
 				]
 			},
@@ -350,6 +350,10 @@
 					"PV_REPOFILE=/etc/apk/repositories",
 					"PV_BEFORE_TEST_CMD=\"cp /opt/pv/tests/repo-apk-post.txt $PV_REPOFILE && cp /opt/pv/tests/repo-apk-pre.txt ${PV_REPOFILE}.pvbak\"",
 					"PV_IMAGE=alpine:3.8",
+					"PV_DISTRO=alpine",
+					"PV_FORMAT=apk",
+					"PV_RELEASE=3.8",
+					"PV_ARCH=x86_64",
 					"PV_X_DIFF_FILE=\"/opt/pv/tests/repo-apk-pre.txt\"",
 					"PV_X_EXIT=0"
 				]
@@ -360,6 +364,10 @@
 					"PV_REPOFILE=/etc/apk/repositories",
 					"PV_BEFORE_TEST_CMD=\"cp /opt/pv/tests/repo-apk-pre.txt $PV_REPOFILE\"",
 					"PV_IMAGE=alpine:3.8",
+					"PV_DISTRO=alpine",
+					"PV_FORMAT=apk",
+					"PV_RELEASE=3.8",
+					"PV_ARCH=x86_64",
 					"PV_X_DIFF_FILE=\"/opt/pv/tests/repo-apk-pre.txt\"",
 					"PV_X_EXIT=0"
 				]
@@ -370,6 +378,10 @@
 					"PV_REPOFILE=/etc/apt/sources.list",
 					"PV_BEFORE_TEST_CMD=\"cp /opt/pv/tests/repo-ubuntu-post.txt $PV_REPOFILE\"",
 					"PV_IMAGE=ubuntu:xenial",
+					"PV_DISTRO=ubuntu",
+					"PV_FORMAT=deb",
+					"PV_RELEASE=xenial",
+					"PV_ARCH=amd64",
 					"PV_X_DIFF_FILE=\"/opt/pv/tests/repo-ubuntu-pre.txt\"",
 					"PV_X_EXIT=0"
 				]
@@ -380,6 +392,10 @@
 					"PV_REPOFILE=/etc/apt/sources.list",
 					"PV_BEFORE_TEST_CMD=\"cp /opt/pv/tests/repo-ubuntu-pre.txt $PV_REPOFILE\"",
 					"PV_IMAGE=ubuntu:xenial",
+					"PV_DISTRO=ubuntu",
+					"PV_FORMAT=deb",
+					"PV_RELEASE=xenial",
+					"PV_ARCH=amd64",
 					"PV_X_DIFF_FILE=\"/opt/pv/tests/repo-ubuntu-pre.txt\"",
 					"PV_X_EXIT=0"
 				]
@@ -389,7 +405,7 @@
 			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
 			"docker exec -t $CONTAINER_ID sh -c \"$PV_BEFORE_TEST_CMD\""
 		],
-		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/install uninstall $PV_REPOFILE\"",
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/install uninstall $PV_REPOFILE $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH\"",
 		"tests":[
 			"-z \"$(docker exec -t $CONTAINER_ID sh -c \"diff $PV_REPOFILE $PV_X_DIFF_FILE\")\"",
 			"$EXIT -eq $PV_X_EXIT"
@@ -407,6 +423,10 @@
 					"PV_REPOFILE=/etc/yum.repos.d/polyverse.repo",
 					"PV_BEFORE_TEST_CMD=\"cp /opt/pv/tests/repo-rpm-post.txt $PV_REPOFILE && ls -al $PV_REPOFILE\"",
 					"PV_IMAGE=centos:6",
+					"PV_DISTRO=centos",
+					"PV_FORMAT=rpm",
+					"PV_RELEASE=6",
+					"PV_ARCH=x86_64",
 					"PV_X_EXIT=0"
 				]
 			}
@@ -415,7 +435,7 @@
 			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\"",
 			"docker exec -t $CONTAINER_ID sh -c \"$PV_BEFORE_TEST_CMD\""
 		],
-		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/install uninstall $PV_REPOFILE\"",
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/install uninstall $PV_REPOFILE $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH\"",
 		"tests":[
 			"! -f \"$PV_REPOFILE\"",
 			"$EXIT -eq $PV_X_EXIT"
@@ -431,6 +451,10 @@
 				"comment":"test unknown format handling.",
 				"env":[
 					"PV_IMAGE=alpine:3.8",
+					"PV_DISTRO=alpine",
+					"PV_FORMAT=apk",
+					"PV_RELEASE=3.8",
+					"PV_ARCH=x86_64",
 					"PV_REPOFILE=/etc/apk/foobar",
 					"PV_X_STDOUT=\"Error: uninstall() doesn't know what to do with repo file '/etc/apk/foobar'.\"",
 					"PV_X_EXIT=1"
@@ -440,8 +464,12 @@
 				"comment":"test incorrect number of arguments.",
 				"env":[
 					"PV_IMAGE=alpine:3.8",
+					"PV_DISTRO=alpine",
+					"PV_FORMAT=apk",
+					"PV_RELEASE=3.8",
+					"PV_ARCH=x86_64",
 					"PV_REPOFILE=",
-					"PV_X_STDOUT=\"Error: uninstall() expecting 1 argument, but received 0.\"",
+					"PV_X_STDOUT=\"Error: uninstall() expecting 5 arguments, but received 4.\"",
 					"PV_X_EXIT=1"
 				]
 			}
@@ -450,7 +478,7 @@
 		"before_test":[
 			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\""
 		],
-		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/install uninstall $PV_REPOFILE\"",
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/install uninstall $PV_REPOFILE $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH\"",
 		"tests":[
 			"\"$(cat $STDOUT)\" == \"$PV_X_STDOUT\"",
 			"$EXIT -eq $PV_X_EXIT"

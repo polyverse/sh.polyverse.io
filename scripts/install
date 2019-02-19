@@ -99,7 +99,7 @@ main() {
 
 	# if --uninstall was specified, just call uninstall() and exit
 	if [ "$PV_UNINSTALL" = "true" ]; then
-		PV_POST_UNINSTALL_CMD="$(uninstall $PV_REPOFILE)"
+		PV_POST_UNINSTALL_CMD="$(uninstall $PV_REPOFILE $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH)"
 		if [ $? -ne 0 ]; then _echo "$PV_POST_UNINSTALL_CMD"; return 1; fi
 
 		RESULT="$(displayPostUninstallMessage "$PV_POST_UNINSTALL_CMD")"
@@ -157,7 +157,7 @@ main() {
 
 	# uninstall (remove all references to polyverse in repo files) before installing
 	# so that installs can be done over-and-over; no harm if polyverse was never installed
-	RESULT="$(uninstall $PV_REPOFILE)"
+	RESULT="$(uninstall $PV_REPOFILE $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH)"
 	if [ $? -ne 0 ]; then _echo "$RESULT"; return 1; fi
 
 	_echo "Adding Polyverse repo information to file '$PV_REPOFILE'..."
@@ -417,7 +417,7 @@ getKeyInstallationInfo() {
 			;;
 		deb)
 			_KEY_SHA256="c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c"
-			_KEY_DOWNLOAD_URL="http://git-sh.polyverse.io-kernel.s3-website-us-west-2.amazonaws.com/keys/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c"
+			_KEY_DOWNLOAD_URL="$PV_BASE_URL/keys/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c"
 			_KEY_INSTALL_LOCATION="/etc/apt/c1aa52267295abe39faa4027d9a49936aae51d72f9dcb9f8a8cbf0682b03223c"
 			;;
 		rpm)
@@ -742,13 +742,28 @@ install() {
 	return 0
 }
 
+#===============================================================================
+#
+#  uninstall $1:REPOFILE_LOCATION $2:DISTRO $3:FORMAT $4:RELEASE $5:ARCH
+#
+#  Remove references to Polyverse repositories.
+#
+#  return code: 0, stdout: "<POST_UNINSTALL_CMD>"
+#  return code: 1, stdout: "<ERROR_MESSAGE>"
+#
+#===============================================================================
+
 uninstall() {
-	if [ $# -ne 1 ]; then
-		echo "Error: uninstall() expecting 1 argument, but received $#."
+	if [ $# -ne 5 ]; then
+		echo "Error: uninstall() expecting 5 arguments, but received $#."
 		return 1
 	fi
 
 	_REPOFILE_LOCATION="$1"
+	_DISTRO="$2"
+	_FORMAT="$3"
+	_RELEASE="$4"
+	_ARCH="$5"
 
 	_CMD=""
 	case "${_REPOFILE_LOCATION}" in
@@ -768,7 +783,14 @@ uninstall() {
 			if [ -f "${_REPOFILE_LOCATION}" ]; then
 				_CMD="rm -f ${_REPOFILE_LOCATION}"
 			fi
-			_POST_UNINSTALL_CMD="yum update -y && yum reinstall -y \*"
+			case "${_DISTRO}" in
+				fedora)
+					_POST_UNINSTALL_CMD="dnf clean packages && dnf update -y && dnf reinstall -y \*"
+					;;
+				*)
+					_POST_UNINSTALL_CMD="yum update -y && yum reinstall -y \*"
+					;;
+			esac
 			;;
 		*)
 			echo "Error: uninstall() doesn't know what to do with repo file '${_REPOFILE_LOCATION}'."
