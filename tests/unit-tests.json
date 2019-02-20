@@ -165,6 +165,161 @@
 		]
 	},
 	{
+		"name":"info.generateToken",
+		"source":"$PV_SH_ROOT/scripts/info",
+		"matrix":[
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.6",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.9",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=centos:6",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=centos:7",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=fedora:23",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=fedora:29",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=registry.access.redhat.com/rhel6.10",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=registry.access.redhat.com/rhel7.6",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=ubuntu:xenial",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=ubuntu:bionic",
+					"PV_X_EXIT=0"
+				]
+			}
+		],
+		"before_test":[
+			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\""
+		],
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/info generateToken\"",
+		"tests":[
+			"! -z \"$(cat $STDOUT)\"",
+			"$(cat $STDOUT | wc -c) -eq 12",
+			"$EXIT -eq $PV_X_EXIT"
+		],
+		"after_test":[
+			"docker rm -fv $CONTAINER_ID"
+		]
+	},
+	{
+		"name":"info.getNetworkNodeHostname",
+		"source":"$PV_SH_ROOT/scripts/info",
+		"matrix":[
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.6",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=alpine:3.9",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=centos:6",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=centos:7",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=fedora:23",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=fedora:29",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=registry.access.redhat.com/rhel6.10",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=registry.access.redhat.com/rhel7.6",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=ubuntu:xenial",
+					"PV_X_EXIT=0"
+				]
+			},
+			{
+				"env":[
+					"PV_IMAGE=ubuntu:bionic",
+					"PV_X_EXIT=0"
+				]
+			}
+		],
+		"before_test":[
+			"CONTAINER_ID=\"$(docker run -dt -v $PV_SH_ROOT:/opt/pv $PV_IMAGE /bin/sh)\""
+		],
+		"cmd":"docker exec -t $CONTAINER_ID sh -c \"/opt/pv/tests/remote.sh /opt/pv/scripts/info getNetworkNodeHostname\"",
+		"tests":[
+			"! -z \"$(cat $STDOUT)\"",
+			"$EXIT -eq $PV_X_EXIT"
+		],
+		"after_test":[
+			"docker rm -fv $CONTAINER_ID"
+		]
+	},
+	{
 		"name":"install.parseInfo",
 		"source":"$PV_SH_ROOT/scripts/install",
 		"matrix":[
