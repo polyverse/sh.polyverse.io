@@ -32,7 +32,7 @@ main() {
 	fi
 
 	# banner
-	_echo "Polyverse polymorphic version of Linux® install script (commit: $PV_GITSHA)"
+	_echo "Polymorphic Linux® install script (commit: $PV_GITSHA)"
 	_echo
 
 	# process command-line, which only sets global PV_ variables
