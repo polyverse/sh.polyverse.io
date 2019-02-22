@@ -32,7 +32,7 @@ main() {
 	fi
 
 	# banner
-	_echo "Polyverse polymorphic version of Linux® install script (commit: $PV_GITSHA)"
+	_echo "Polymorphic Linux® install script (commit: $PV_GITSHA)"
 	_echo
 
 	# process command-line, which only sets global PV_ variables
@@ -616,12 +616,12 @@ downloadAndInstallKey() {
 			# do nothing
 			;;
 		deb)
-			apt-key add ${_KEY_INSTALL_LOCATION} >/dev/null 2>&1
+			_RESULT="$(apt-key add ${_KEY_INSTALL_LOCATION} 2>&1)"
 			if [ $? -ne 0 ]; then
-				echo "Error: 'apt-key add ${_KEY_INSTALL_LOCATION} returned non-zero."
+				echo "Error: 'apt-key add ${_KEY_INSTALL_LOCATION} returned non-zero: '${_RESULT}'"
 				return 1
 			fi
-			if [ -z "$(apt-key list | grep Polyverse)" ]; then
+			if [ -z "$(apt-key list 2>/dev/null | grep Polyverse)" ]; then
 				echo "Error: 'apt-key list' doesn't show a key from Polyverse."
 				return 1
 			fi
@@ -653,6 +653,13 @@ installRequiredPackages() {
 				apt-get -qq install apt-transport-https -y >/dev/null 2>&1
 				if [ $? -ne 0 ]; then
 					echo "Error: command 'apt-get -qq install apt-transport-https -y' returned non-zero."
+					return 1
+				fi
+
+				_echo "Installing gnupg (OpenPGP) to support the Polyverse key..."
+				apt-get -qq install gnupg -y >/dev/null 2>&1
+				if [ $? -ne 0 ]; then
+					echo "Error: command 'apt-get install -y gnupg' returned non-zero."
 					return 1
 				fi
 				;;
