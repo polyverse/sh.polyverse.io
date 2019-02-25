@@ -147,12 +147,12 @@ main() {
 
 	_debugln "REPO_FILE_CONTENTS: $REPO_FILE_CONTENTS"
 
-	_echo "Installing Polyverse public key..."
-	RESULT="$(downloadAndInstallKey "$PV_FORMAT" "$PV_KEY_SHA256" "$PV_KEY_DOWNLOAD_URL" "$PV_KEY_INSTALL_LOCATION")"
-	if [ $? -ne 0 ]; then _echo "$RESULT"; return 1; fi
-
 	# hook to install any additional required packages; currently, only apt-transport-https needs to be installed for ubuntu.
 	RESULT="$(installRequiredPackages $PV_DISTRO $PV_FORMAT $PV_RELEASE $PV_ARCH)"
+	if [ $? -ne 0 ]; then _echo "$RESULT"; return 1; fi
+
+	_echo "Installing Polyverse public key..."
+	RESULT="$(downloadAndInstallKey "$PV_FORMAT" "$PV_KEY_SHA256" "$PV_KEY_DOWNLOAD_URL" "$PV_KEY_INSTALL_LOCATION")"
 	if [ $? -ne 0 ]; then _echo "$RESULT"; return 1; fi
 
 	# uninstall (remove all references to polyverse in repo files) before installing
