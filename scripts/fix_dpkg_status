@@ -160,7 +160,8 @@ do
 		else
 			SKIPPED_COUNT=$((SKIPPED_COUNT+1))
 		fi
-		printf "$CURRENT_RECORD\n" | sed '/^\s*$/d' >> /var/lib/dpkg/status.tmp
+		#printf "$CURRENT_RECORD\n" | sed '/^\s*$/d' >> /var/lib/dpkg/status.tmp
+		echo "$CURRENT_RECORD" | sed 's/\\n/\n/g' | sed '/^\s*$/d' >> /var/lib/dpkg/status.tmp
 		echo "" >> /var/lib/dpkg/status.tmp
 
 		# reset variables
