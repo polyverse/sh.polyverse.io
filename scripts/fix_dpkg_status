@@ -53,12 +53,13 @@ getPolyverseRecord() {
 
 	for record in $(ls xx?? | xargs); do
 		# metadata from Polyverse contains SHA512: entry; official repo does not.
-		PV_FINGERPRINT="$(cat $record | grep SHA512:)"
+		PV_FINGERPRINT="$(cat $record |grep "^Filename: main/")"
 		# there could be multiple PV records, so make sure the version info matches
 		if [ "$PV_FINGERPRINT" != "" ] && [ "$(cat $record | grep $VER)" != "" ]; then
 			# sometimes a record has a leading/trailing blank line. trim this.
 			# TO DO: our indexer occassionally is inserting a locale discriminant. this should be fixed in our indexer.
-			cat $record | sed '/^\s*$/d' | sed 's/^Description-en:/Description:/g'
+			#cat $record | sed '/^\s*$/d' | sed 's/^Description-en:/Description:/g'
+			cat $record
 			RETURN_CODE=0
 			break
 		fi
@@ -146,6 +147,7 @@ do
 	if [ "$line" = "" ]; then
 		RETURN_CODE=0
 		if [ "$FIX" = "true" ]; then
+			# echo "FIX: $PACKAGE_NAME $PACKAGE_VERSION"
 			PACKAGE_RECORD="$(getPolyverseRecord $PACKAGE_NAME $PACKAGE_VERSION)"
 			RETURN_CODE=$?
 		fi
@@ -158,7 +160,7 @@ do
 		else
 			SKIPPED_COUNT=$((SKIPPED_COUNT+1))
 		fi
-		echo "$CURRENT_RECORD" | sed '/^\s*$/d' >> /var/lib/dpkg/status.tmp	
+		printf "$CURRENT_RECORD\n" | sed '/^\s*$/d' >> /var/lib/dpkg/status.tmp
 		echo "" >> /var/lib/dpkg/status.tmp
 
 		# reset variables
@@ -175,6 +177,7 @@ do
 	if [ "$(echo $line | grep ^Version:)" != "" ]; then
 		PACKAGE_VERSION="$(echo $line | awk '{print $2}')"
 	fi
+
 done < "/var/lib/dpkg/status"
 
 echo "\nFixed: $FIXED_COUNT, Skipped: $SKIPPED_COUNT"
