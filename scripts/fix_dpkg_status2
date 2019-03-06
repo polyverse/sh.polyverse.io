@@ -1,0 +1,104 @@
+#!/bin/bash
+
+main() {
+	UPGRADE_LIST="$(apt list --installed 2>/dev/null | grep upgradable | awk -F/ '{print $1}')"
+
+	RECORD_COUNT="$(cat /var/lib/dpkg/status | grep ^Package: | wc -l | xargs)"
+	RECORD_INDEX=1
+
+	if [ ! -f "/var/lib/dpkg/status.bak" ]; then
+		(>&2 echo "Making backup '/var/lib/dpkg/status.bak'...")
+		cp /var/lib/dpkg/status /var/lib/dpkg/status.bak
+	fi
+
+	TEMPFILE="$(mktemp)"
+
+	while [ $RECORD_INDEX -le $RECORD_COUNT ]; do
+
+		RECORD="$(cat /var/lib/dpkg/status | awk -v RS= 'NR=='$RECORD_INDEX'')"
+		let RECORD_INDEX=RECORD_INDEX+1
+
+		FIELDS="$(echo "$RECORD" | grep ^[a-zA-Z-]*:.*$  | awk -F: '{print $1}' | xargs)"
+
+		PACKAGE="$(getFieldValue Package "$RECORD")"
+		VERSION="$(getFieldValue Version "$RECORD")"
+
+		echo "Package: $PACKAGE, Version: $VERSION, Fields: $FIELDS"
+
+		if [ ! -z "$(echo "$UPGRADE_LIST" | grep "^$PACKAGE$")" ]; then
+			SHOW="$(apt-cache show $PACKAGE 2> /dev/null)"
+			SHOW_RECORD_COUNT="$(echo "$SHOW" | grep ^Package: | wc -l | xargs)"
+
+			SHOW_RECORD_INDEX=1
+			while [ $SHOW_RECORD_INDEX -le $SHOW_RECORD_COUNT ]; do
+				SHOW_RECORD="$(echo "$SHOW" | awk -v RS= 'NR=='$SHOW_RECORD_INDEX'')"
+
+				SHOW_PACKAGE="$(getFieldValue Package "$SHOW_RECORD")"
+				SHOW_VERSION="$(getFieldValue Version "$SHOW_RECORD")"
+				SHOW_FILENAME="$(getFieldValue Filename "$SHOW_RECORD")"
+
+				echo "---> Package: $SHOW_PACKAGE, Version: $SHOW_VERSION, Index: $SHOW_RECORD_INDEX of $SHOW_RECORD_COUNT"
+
+				if [ ! -z "$(echo "$SHOW_FILENAME" | grep "^main/")" ] && [ "$VERSION" = "$SHOW_VERSION" ]; then
+					for FIELD in $FIELDS; do
+						DPKG_VAL="$(getFieldValue $FIELD "$RECORD")"
+						SHOW_VAL="$(getFieldValue $FIELD "$SHOW_RECORD")"
+
+						if [ ! -z "$SHOW_VAL" ] && [ "$DPKG_VAL" != "$SHOW_VAL" ]; then
+							echo "---> Field mismatch: $FIELD"
+							echo "-----> Old: $DPKG_VAL"
+							echo "-----> New: $SHOW_VAL"
+							RECORD="$(echo "$RECORD" | sed 's/^'$FIELD':.*$/'$FIELD': '"$SHOW_VAL"'/g')"
+						fi
+					done
+					break
+				fi      
+
+				let SHOW_RECORD_INDEX=SHOW_RECORD_INDEX+1
+			done
+		fi
+
+		echo "$RECORD" >> $TEMPFILE
+		echo >> $TEMPFILE
+	done
+
+	cp $TEMPFILE  /var/lib/dpkg/status
+	rm $TEMPFILE
+}
+
+getFieldValue() {
+	_KEY="$1"
+	_RECORD="$2"
+
+	echo "${_RECORD}" | grep "^${_KEY}: " | sed 's/^'${_KEY}': //g'
+}
+
+processBlock() {
+	_BLOCK="$1"
+
+	_PACKAGE="$(echo "${_BLOCK}" | head -1 | tail -1 | grep "^Package" | awk -F: '{print $2}' | xargs)"
+	if [ -z "${_PACKAGE}" ]; then
+		echo "Invalid block:"
+		echo "${_BLOCK}"
+		return 1
+	fi
+
+	echo "$1"
+	#_VERSION="$(echo "${_BLOCK}" | grep "^Version:" | awk -F: '{print $2}' | xargs)"
+	#_INSTALLED_SIZE="$(echo "${_BLOCK}" | grep "^Installed-Size:" | awk -F: '{print $2}' | xargs)"
+	#_FILENAME="$(echo "${_BLOCK}" | grep "^Filename:" | awk -F: '{print $2}' | xargs)"
+	#_DEPENDS="$(echo "${_BLOCK}" | grep "^Depends:" | awk -F: '{print $2}' | xargs)"
+
+	#echo "${_PACKAGE} ${_VERSION} ${_INSTALLED_SIZE} ${_FILENAME}"
+
+	#echo
+	#echo ">>>>>"
+	#echo "${_BLOCK}" | sed 's/\\n/\n/g'
+	#echo "<<<<<"
+	#echo
+
+	
+}
+
+main "$@"
+exit $?
