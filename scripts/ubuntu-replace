@@ -1,0 +1,131 @@
+#!/bin/bash
+
+# set the environment variable PV_BASE_URL to test non-prod version
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
+
+main() {
+	PV_INFO="$(curl -s $PV_BASE_URL/main.sh | PV_BASE_URL=$PV_BASE_URL sh -s info)"
+        if [ $? -ne 0 ]; then
+                (>&2 echo "Unable to determine Linux distro info: $PV_INFO. Please contact support@polyverse.io.")
+                return 1
+        fi
+
+	PV_DISTRO="$(echo "$PV_INFO" | grep ^DISTRO | awk -F= '{print $2}')"
+	if [ "$PV_DISTRO" != "ubuntu" ]; then
+		(>&2 echo "This script is only intended for Ubuntu.")
+		return 1
+	fi
+
+	# run apt-get update in case it wasn't run after the Polymorphic Linux install
+	RESULT="$(apt-get update -y 2>&1)"
+	if [ $? -ne 0 ]; then
+		echo "Error: command 'apt update -y' returned non-zero."
+		echo "$RESULT"
+		return 1
+	fi
+
+	downloadAndReplacePackagesWithDpkg
+
+	return 0
+}
+
+parseCommandLine() {
+	if [ "$1" = "ubuntu-replace-packages" ]; then
+		shift
+	fi
+}
+
+downloadAndReplacePackagesWithDpkg() {
+	mkdir -p /tmp/pv/info /tmp/pv/triggers
+
+	cd /var/lib/dpkg/info
+	mv /var/lib/dpkg/info/*.pre* /tmp/pv/info/
+	mv /var/lib/dpkg/info/*.post* /tmp/pv/info/
+	mv /var/lib/dpkg/info/*.triggers /tmp/pv/info/
+	mv /var/lib/dpkg/info/*.config /tmp/pv/info/
+
+	#ls -al /var/lib/dpkg/triggers/
+	mv /var/lib/dpkg/triggers/* /tmp/pv/triggers
+	#ls -al /var/lib/dpkg/triggers/
+
+	# since we're downloading deb files, let's cd to a folder that is permissive
+	cd /tmp
+
+	FILES_MOVED="$(ls /tmp/pv/info 2>/dev/null | wc -l)"
+	(>&2 echo "Temporarily moved $FILES_MOVED files.")
+
+	# output of 'apt list --installed' looks like:
+	#
+	#   adduser/xenial,now 3.113+nmu3ubuntu4 all [installed]
+	#   apt/xenial-updates,now 1.2.29ubuntu0.1 amd64 [installed]
+	#   apt-transport-https/xenial-updates,now 1.2.29ubuntu0.1 amd64 [installed]
+	#
+	APT_LIST_INSTALLED="$(apt list --installed 2>/dev/null | grep -v Listing)"
+
+	# create list that contains the installed package names only
+	PACKAGES="$(echo "$APT_LIST_INSTALLED" | awk -F/ '{print $1}')"
+
+	# we're only interested in replacing the specific <package>=<version> that's already installed
+	for PACKAGE in $PACKAGES; do
+		PACKAGE_VER="$(echo "$APT_LIST_INSTALLED" | grep "^${PACKAGE}/" | awk '{print $2}')"
+
+		(>&2 echo "Downloading '$PACKAGE=$PACKAGE_VER'...")
+		RESULT="$(apt-get download $PACKAGE=$PACKAGE_VER 2>&1)"
+		EXIT_CODE=$?
+		if [ $EXIT_CODE -ne 0 ]; then
+			# since we still have the official repos, this most likely means that the user didn't perform an `apt upgrade` beforehand.
+			# for now, just continue -- but that particular package won't be replaced.
+			(>&2 echo "Warning: returned non-zero code '$EXIT_CODE'.")
+			(>&2 echo "$RESULT")
+			continue
+		fi
+
+		# grab the .deb filename
+		DEB_FILENAME="$(ls ${PACKAGE}*.deb | xargs)"
+
+		# RESULT contains the stdout/stderr of the 'apt-get download <package>=<version>` command and looks like:
+		#
+		#   Get:1 https://repo.polyverse.io/deb/ubuntu/xenial/binary_amd64 main/ adduser 3.113+nmu3ubuntu4 [238 kB]
+		#   Fetched 238 kB in 0s (584 kB/s)
+		#
+		# see if the package came from repo.polyverse.io and only continue with unpacking if it did
+		if [ -z "$(echo "$RESULT" | grep "repo.polyverse")" ]; then
+			# clean-up
+			rm -f $DEB_FILENAME >/dev/null 2>&1
+			continue
+		fi
+
+		# implementation of https://askubuntu.com/questions/482928/ignore-apt-get-postinstall-scripts-automatically
+
+		dpkg --unpack $DEB_FILENAME | grep -v "Reading database"
+		rm -f /var/lib/dpkg/triggers/*
+
+		# scripts, control files, etc. are all extracted by default to /var/lib/dpkg/info
+		rm -f /var/lib/dpkg/info/*.pre*
+		rm -f /var/lib/dpkg/info/*.post*
+		rm -f /var/lib/dpkg/info/*.triggers
+		rm -f /var/lib/dpkg/info/*.config
+		rm -f /var/lib/dpkg/info/*.conffiles
+
+		# this should be a no-op, but run it to be sure
+		dpkg --configure $PACKAGE
+
+		# clean-up
+		rm -f $DEB_FILENAME >/dev/null 2>&1
+	done
+
+	# restore all the pre/post/trigger files
+	mv /tmp/pv/info/*.* /var/lib/dpkg/info/
+	mv /tmp/pv/triggers/* /var/lib/dpkg/triggers
+
+	#rm -frd /tmp/pv
+
+	# -f will correct broken dependencies, but this should be a no-op
+	# -y = assume yes
+	(>&2 apt-get install -yf)
+
+	return 0
+}
+
+main "$@"
+exit $?
