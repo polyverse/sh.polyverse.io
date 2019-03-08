@@ -65,50 +65,43 @@ downloadAndReplacePackagesWithDpkg() {
 	# create list that contains the installed package names only
 	PACKAGES="$(echo "$APT_LIST_INSTALLED" | awk -F/ '{print $1}')"
 
-	# we're only interested in replacing the specific <package>=<version> that's already installed
 	for PACKAGE in $PACKAGES; do
 		PACKAGE_VER="$(echo "$APT_LIST_INSTALLED" | grep "^${PACKAGE}/" | awk '{print $2}')"
 
-		(>&2 echo "Downloading '$PACKAGE=$PACKAGE_VER'...")
-		RESULT="$(apt-get download $PACKAGE=$PACKAGE_VER 2>&1)"
-		EXIT_CODE=$?
-		if [ $EXIT_CODE -ne 0 ]; then
-			# since we still have the official repos, this most likely means that the user didn't perform an `apt upgrade` beforehand.
-			# for now, just continue -- but that particular package won't be replaced.
-			(>&2 echo "Warning: returned non-zero code '$EXIT_CODE'.")
-			(>&2 echo "$RESULT")
-			continue
+		LIST="$LIST $PACKAGE=$PACKAGE_VER"
+	done
+	apt-get download $LIST | tee list.txt
+
+	REPLACED_COUNT=0
+	SKIPPED_COUNT=0
+
+	# we're only interested in replacing the specific <package>=<version> that's already installed
+	for PACKAGE in $PACKAGES; do
+		PACKAGE_VER="$(echo "$APT_LIST_INSTALLED" | grep "^${PACKAGE}/" | awk '{print $2}')"
+		PACKAGE_VER_ENCODED="$(echo "$PACKAGE_VER" | sed 's/:/%3a/g')"
+
+		DEB_FILENAME="$(ls ${PACKAGE}_${PACKAGE_VER_ENCODED}*.deb | xargs)"
+
+		if [ ! -z "$(cat list.txt | grep repo.polyverse.io | grep $PACKAGE | grep $PACKAGE_VER)" ]; then
+			# implementation of https://askubuntu.com/questions/482928/ignore-apt-get-postinstall-scripts-automatically
+
+			dpkg --unpack $DEB_FILENAME | grep -v "Reading database"
+			rm -f /var/lib/dpkg/triggers/*
+
+			# scripts, control files, etc. are all extracted by default to /var/lib/dpkg/info
+			rm -f /var/lib/dpkg/info/*.pre*
+			rm -f /var/lib/dpkg/info/*.post*
+			rm -f /var/lib/dpkg/info/*.triggers
+			rm -f /var/lib/dpkg/info/*.config
+			rm -f /var/lib/dpkg/info/*.conffiles
+
+			# this should be a no-op, but run it to be sure
+			dpkg --configure $PACKAGE
+			REPLACED_COUNT=$((REPLACED_COUNT+1))
+		else
+			echo "Skipping $PACKAGE ($PACKAGE_VER)"
+			SKIPPED_COUNT=$((SKIPPED_COUNT+1))
 		fi
-
-		# grab the .deb filename
-		DEB_FILENAME="$(ls ${PACKAGE}*.deb | xargs)"
-
-		# RESULT contains the stdout/stderr of the 'apt-get download <package>=<version>` command and looks like:
-		#
-		#   Get:1 https://repo.polyverse.io/deb/ubuntu/xenial/binary_amd64 main/ adduser 3.113+nmu3ubuntu4 [238 kB]
-		#   Fetched 238 kB in 0s (584 kB/s)
-		#
-		# see if the package came from repo.polyverse.io and only continue with unpacking if it did
-		if [ -z "$(echo "$RESULT" | grep "repo.polyverse")" ]; then
-			# clean-up
-			rm -f $DEB_FILENAME >/dev/null 2>&1
-			continue
-		fi
-
-		# implementation of https://askubuntu.com/questions/482928/ignore-apt-get-postinstall-scripts-automatically
-
-		dpkg --unpack $DEB_FILENAME | grep -v "Reading database"
-		rm -f /var/lib/dpkg/triggers/*
-
-		# scripts, control files, etc. are all extracted by default to /var/lib/dpkg/info
-		rm -f /var/lib/dpkg/info/*.pre*
-		rm -f /var/lib/dpkg/info/*.post*
-		rm -f /var/lib/dpkg/info/*.triggers
-		rm -f /var/lib/dpkg/info/*.config
-		rm -f /var/lib/dpkg/info/*.conffiles
-
-		# this should be a no-op, but run it to be sure
-		dpkg --configure $PACKAGE
 
 		# clean-up
 		rm -f $DEB_FILENAME >/dev/null 2>&1
@@ -119,6 +112,8 @@ downloadAndReplacePackagesWithDpkg() {
 	mv /tmp/pv/triggers/* /var/lib/dpkg/triggers
 
 	#rm -frd /tmp/pv
+
+	echo "Polyverse replaced $REPLACED_COUNT and skipped $SKIPPED_COUNT packages."
 
 	# -f will correct broken dependencies, but this should be a no-op
 	# -y = assume yes
