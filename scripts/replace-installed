@@ -1,0 +1,328 @@
+#!/bin/bash
+
+# set the environment variable PV_BASE_URL to test non-prod version
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
+
+if [ "$0" != "bash" ]; then
+	(>&2 echo "This script must be run with bash. Usage: curl $PV_BASE_URL | bash -s replace-installed")
+	exit 1
+fi
+
+# apt update -y && apt upgrade -y && apt install -y curl file vim
+# echo "52.88.110.206 repo.polyverse.io" >> /etc/hosts && curl https://sh.polyverse.io | sh -s install czcw7pjshny8lzzog8bgiizfr
+# find / -type f -printf '%Tc %p\n' 2>/dev/null | grep -v " /proc" > /tmp/pv-before.txt
+# bash /opt/pv/replace-installed --all
+# find / -type f -printf '%Tc %p\n' 2>/dev/null | grep -v " /proc" > /tmp/pv-after.txt
+
+main() {
+	# process command-line arguments; sets environment variables.
+	parseCommandLine "$@"
+	if [ $? -ne 0 ]; then return 1; fi
+
+	# call sh.polyverse.io's info script; results are exported as environment variables
+	exportInfo
+	if [ $? -ne 0 ]; then return 1; fi
+
+	case "$DISTRO" in
+		ubuntu)
+			apt_replaceInstalledPackages
+			if [ $? -ne 0 ]; then return 1; fi
+			;;
+		*)
+			_echo "This script doesn't currently support distro '$DISTRO'."
+			return 1
+			;;
+	esac
+
+	return 0
+}
+
+parseCommandLine() {
+	if [ "$1" = "replace-installed" ]; then
+		shift
+	fi
+
+	PV_REPO_FILTER="repo.polyverse.io"
+
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--package)
+				shift
+				export PV_PACKAGE_LIST="$PV_PACKAGE_LIST $1"
+				;;
+			--log)
+				shift
+				export PV_LOGFILE="$1"
+				;;
+			--all)
+				export PV_REPO_FILTER=".*"
+				;;
+			*)
+				_echo "Error: unexpected argument '$1'."
+				return 1
+				;;
+
+		esac
+		shift
+	done
+
+	if [ -z "$PV_LOGFILE" ]; then
+		export PV_LOGFILE="/var/log/polyverse.log"
+	fi
+
+	if [ ! -f "$PV_LOGFILE" ]; then
+		touch "$PV_LOGFILE"
+	fi
+}
+
+exportInfo() {
+	_INFO="$(_eval "curl -s $PV_BASE_URL/main.sh | PV_BASE_URL=$PV_BASE_URL sh -s info")"
+	if [ $? -ne 0 ]; then
+		_echo "Unable to determine Linux distro info: $PV_INFO. Please contact support@polyverse.io."
+		return 1
+	fi
+
+	for _LINE in $_INFO; do
+		export $(echo $_LINE)
+	done
+
+	return 0
+}
+
+isELF() {
+	file $1 2>/dev/null | grep -q " ELF "
+	return $?
+}
+
+apt_replaceInstalledPackages() {
+	# run apt-get update in case it wasn't run after the Polymorphic Linux install
+	# TO DO: remove '2>/dev/null' once debian fixes https://github.com/Debian/apt/issues/79
+	#   W: Conflicting distribution: https://repo.polyverse.io/deb/ubuntu/bionic/binary_amd64 main/ InRelease (expected main/ but got bionic)
+	#   W: Conflicting distribution: https://repo.polyverse.io/deb/ubuntu/bionic-updates/binary_amd64 main/ InRelease (expected main/ but got bionic)
+	#   W: Conflicting distribution: https://repo.polyverse.io/deb/ubuntu/bionic-security/binary_amd64 main/ InRelease (expected main/ but got bionic)
+	#   N: Usage of apt_auth.conf(5) should be preferred over embedding login information directly in the sources.list(5) entry for 'https://repo.polyverse.io/deb/ubuntu/bionic/binary_amd64'
+	#   N: Usage of apt_auth.conf(5) should be preferred over embedding login information directly in the sources.list(5) entry for 'https://repo.polyverse.io/deb/ubuntu/bionic-updates/binary_amd64'
+	#   N: Usage of apt_auth.conf(5) should be preferred over embedding login information directly in the sources.list(5) entry for 'https://repo.polyverse.io/deb/ubuntu/bionic-security/binary_amd64'
+	_eval "apt-get update -y 2>/dev/null"
+	if [ $? -ne 0 ]; then return 1; fi
+
+	# install the 'file' package if it isn't already installed; needed to determine if a file is ELF.
+	_eval "file --version >/dev/null 2>&1"
+	if [ $? -eq 127 ]; then
+		_eval "apt-get install -y file"
+		if [ $? -ne 0 ]; then return 1; fi
+	fi
+
+	# backup the files in /var/lib/dpkg/[info,triggers]/
+	ubuntuVarLibDpkgBackup
+	if [ $? -ne 0 ]; then return 1; fi
+
+	if [ -z "$PV_PACKAGE_LIST" ]; then
+		# output of 'apt list --installed' looks like:
+		#
+		#   adduser/xenial,now 3.113+nmu3ubuntu4 all [installed]
+		#   apt/xenial-updates,now 1.2.29ubuntu0.1 amd64 [installed]
+		#   apt-transport-https/xenial-updates,now 1.2.29ubuntu0.1 amd64 [installed]
+		#
+		APT_LIST_INSTALLED="$(_eval "apt list --installed 2>/dev/null | fgrep \"[installed\"")"
+
+		# transform output to "adduser=3.113+nmu3ubuntu4 apt=1.2.29ubuntu0.1 apt-transport-https=1.2.29ubuntu0.1"
+		export PV_PACKAGE_LIST="$(_eval "echo \"$APT_LIST_INSTALLED\" | sed 's/ /\//g' | awk -F/ '{print \$1\"=\"\$3}' | xargs")"
+	fi
+
+	# apt-get download downloads to current directory, so cd to a permissive folder
+	cd /tmp
+	_eval "apt-get download $PV_PACKAGE_LIST"
+	if [ $? -ne 0 ]; then
+		_echo "Warning: Detected error downloading packages. Continuing..."
+	fi
+
+	for PACKAGE in $PV_PACKAGE_LIST; do
+		deb_replacePackage $PACKAGE
+		if [ $? -ne 0 ]; then
+			_echo "Warning: Encountered issue replacing '$PACKAGE'."
+		fi
+	done
+
+	# restore all the pre/post/trigger files
+	ubuntuVarLibDpkgRestore
+	if [ $? -ne 0 ]; then return 1; fi
+
+	# -f will correct broken dependencies, but this should be a no-op
+	# -y = assume yes
+	_eval "apt-get install -yf"
+
+	_eval "rm -frd /tmp/pv"
+
+	return 0
+}
+
+deb_replacePackage() {
+		if [ $# -ne 1 ]; then
+			_echo "Error: deb_replacePackage() expected 1 argument but got '$#'."
+			return 1
+		fi
+
+		_PKG="$1"
+		_PKG_NAME="$(_eval "echo $_PKG | awk -F= '{print \$1}'")"
+		_PKG_VER="$(_eval "echo $_PKG | awk -F= '{print \$2}' | sed 's/:/%3a/g'")"
+
+		_DEB_FILENAME="$(_eval "ls ${_PKG_NAME}_${_PKG_VER}*.deb | xargs")"
+
+		if [ -z "$_DEB_FILENAME" ]; then
+			_echo "Warning: Unable to determine .deb file (_PKG: ${_PKG})."
+			return 1
+		fi
+
+		backupDebPackageNonExecutableFiles ${_DEB_FILENAME}
+		if [ $? -ne 0 ]; then return 1; fi
+
+		# implementation of https://askubuntu.com/questions/482928/ignore-apt-get-postinstall-scripts-automatically
+		_eval "dpkg --unpack ${_DEB_FILENAME}"
+		if [ $? -ne 0 ]; then return 1; fi
+
+		# scripts, control files, etc. are all extracted by default to /var/lib/dpkg/info
+		_eval "rm -f /var/lib/dpkg/info/*.pre* /var/lib/dpkg/info/*.post* /var/lib/dpkg/info/*.triggers /var/lib/dpkg/info/*.config /var/lib/dpkg/info/*.conffiles /var/lib/dpkg/triggers/*"
+
+		# this should be a no-op, but run it to be sure
+		_eval "dpkg --configure ${_PKG_NAME}"
+		if [ $? -ne 0 ]; then return 1; fi
+
+		restoreDebPackageNonExecutableFilesBackup ${_DEB_FILENAME}
+		if [ $? -ne 0 ]; then return 1; fi
+
+		# clean-up
+		_eval "rm -f ${_DEB_FILENAME} >/dev/null 2>&1"
+		if [ $? -ne 0 ]; then return 1; fi
+}
+
+ubuntuVarLibDpkgBackup() {
+	_eval "mkdir -p /tmp/pv/info /tmp/pv/triggers"
+	if [ $? -ne 0 ]; then return 1; fi
+	
+	_eval "cp -rp --parent /var/lib/dpkg/info/ /tmp/pv/info/"
+	if [ $? -ne 0 ]; then return 1; fi
+
+	_eval "rm -f /tmp/pv/info/*.md5sums /tmp/pv/info/*.list"
+	if [ $? -ne 0 ]; then return 1; fi
+
+	_eval "cp -rp --parent /var/lib/dpkg/triggers/ /tmp/pv/triggers/"
+	if [ $? -ne 0 ]; then return 1; fi
+
+	return 0
+}
+
+ubuntuVarLibDpkgRestore() {
+	_eval "cd /tmp/pv/info && cp -rp --parent . /"
+	if [ $? -ne 0 ]; then return 1; fi
+
+	_eval "cd /tmp/pv/triggers && cp -rp --parent . /"
+	if [ $? -ne 0 ]; then return 1; fi
+
+	return 0
+}
+
+backupDebPackageNonExecutableFiles() {
+	_DEB_FILENAME="$1"
+
+	_BACKUP_DIR="/tmp/pv/${_DEB_FILENAME}.backup"
+
+	if [ -d "${_BACKUP_DIR}" ]; then
+		rm -frd ${_BACKUP_DIR}
+	fi
+	mkdir -p $_BACKUP_DIR
+
+	# drwxr-xr-x root/root         0 2018-01-18 09:43 ./usr/share/man/man8/
+	# -rw-r--r-- root/root       873 2018-01-18 09:43 ./usr/share/man/man8/chroot.8.gz
+	# lrwxrwxrwx root/root         0 2018-01-18 09:43 ./usr/bin/md5sum.textutils -> md5sum
+	#_PACKAGE_CONTENTS="$(dpkg -c $_DEB_FILENAME | sed 's/ -> .*$//')"
+	_PACKAGE_CONTENTS="$(dpkg -c $_DEB_FILENAME | grep "^-" | grep -v '\\')"
+
+        _FILES_TO_BACKUP="$(echo "$_PACKAGE_CONTENTS" | awk '{print $NF}')"
+
+	for _FILE in $_FILES_TO_BACKUP; do
+		_LINE="$(echo "$_PACKAGE_CONTENTS" | grep " $(echo $_FILE | sed 's/\[/\\\[/g')\$")"
+
+		_FILE="$(echo "$_FILE" | sed 's/^\.//g')"
+		_PERMS="$(echo "$_LINE" | awk '{print $1}')"
+		printf "%s %s ===> " "$_PERMS" "$_FILE"  >> $PV_LOGFILE
+
+		case $_PERMS in
+			d?????????)
+				printf "skip. (directory)\n"  >> $PV_LOGFILE
+				;;
+			l?????????)
+				printf "skip. (symlink)\n"  >> $PV_LOGFILE
+				;;
+			???x??????|??????x???|?????????x)
+				printf "skip. (executable)\n"  >> $PV_LOGFILE
+				;;
+			-?????????)
+				if [ ! -f "$_FILE" ]; then
+					printf "skip. (file missing)\n"  >> $PV_LOGFILE
+				else
+					if [ $(isELF $_FILE; echo $?) -eq 0 ]; then
+						printf "skip. (file is elf)\n"  >> $PV_LOGFILE
+					else
+						printf "backup.\n"  >> $PV_LOGFILE
+						cp -p --parent $_FILE $_BACKUP_DIR
+					fi
+				fi
+				;;
+			*)
+				printf "skip. (unhandled: $_PERMS)"  >> $PV_LOGFILE
+				;;
+		esac
+	done
+}
+
+restoreDebPackageNonExecutableFilesBackup() {
+	_DEB_FILENAME="$1"
+	_BACKUP_DIR="/tmp/pv/${_DEB_FILENAME}.backup"
+
+	_eval "find $_BACKUP_DIR -type f >> $PV_LOGFILE"
+
+	_PWD="$(pwd)"
+	_eval "cd $_BACKUP_DIR"
+	_eval "cp -p --parent -r . /"
+	_eval "cd $_PWD"
+	_eval "rm -frd $_BACKUP_DIR"
+}
+
+_echo() {
+	if [ -z "$PV_LOGFILE" ]; then
+		echo -e "$1" >&2
+	else   
+		echo -e "$1" | tee -a $PV_LOGFILE >&2
+	fi
+}
+
+_debugln() { 
+	if [ ! -z "$PV_DEBUG" ]; then
+		_echo "PV_DEBU: $1"
+	fi
+}
+
+_log() {
+	echo -e "$1" >> $PV_LOGFILE
+}
+
+_eval() {
+	_log "_eval() \$1:\"$1\""
+
+	if [ -z "$PV_LOGFILE" ]; then
+		_echo "PV_LOGFILE global variable is empty."
+		return 1
+	fi
+
+	# https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
+	eval "$1" > >(tee -a $PV_LOGFILE) 2> >(tee -a $PV_LOGFILE >&2)
+	_EXITCODE=$?
+
+	_log "_eval() \$_EXITCODE: $_EXITCODE"
+
+	return $_EXITCODE
+}
+
+main "$@"
+exit $?
