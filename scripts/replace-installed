@@ -3,7 +3,7 @@
 # set the environment variable PV_BASE_URL to test non-prod version
 if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
 
-if [ "$0" != "bash" ]; then
+if [ -z "$(echo $SHELL | grep bash)" ]; then
 	(>&2 echo "This script must be run with bash. Usage: curl $PV_BASE_URL | bash -s replace-installed")
 	exit 1
 fi

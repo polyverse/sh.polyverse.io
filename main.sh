@@ -2,6 +2,11 @@
 
 if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
 
+PV_SHELL="sh"
+if [ ! -z "$(echo $SHELL | grep bash)" ]; then
+	PV_SHELL="bash"
+fi
+
 #******************************************************************************#
 #                                 functions                                    #
 #******************************************************************************#
@@ -66,5 +71,5 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-eval "curl -sS $PV_BASE_URL/scripts/$SUBCMD | sh -s $ARGS"
+eval "curl -sS $PV_BASE_URL/scripts/$SUBCMD | $PV_SHELL -s $ARGS"
 exit $?
