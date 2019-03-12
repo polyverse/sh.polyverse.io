@@ -71,5 +71,5 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-eval "curl -sS $PV_BASE_URL/scripts/$SUBCMD | $PV_SHELL -s $ARGS"
+eval "curl -sS $PV_BASE_URL/scripts/$SUBCMD | sh -s $ARGS"
 exit $?
