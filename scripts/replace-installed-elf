@@ -1,0 +1,286 @@
+#!/bin/bash
+
+# set the environment variable PV_BASE_URL to test non-prod version
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
+
+if [ -z "$(echo $SHELL | grep bash)" ]; then
+	(>&2 echo "This script must be run with bash. Usage: curl $PV_BASE_URL | bash -s replace-installed")
+	exit 1
+fi
+
+# apt update -y && apt upgrade -y && apt install -y curl file vim
+# echo "52.88.110.206 repo.polyverse.io" >> /etc/hosts && curl https://sh.polyverse.io | sh -s install czcw7pjshny8lzzog8bgiizfr
+# find / -type f -printf '%Tc %p\n' 2>/dev/null | grep -v " /proc" > /tmp/pv-before.txt
+# bash /opt/pv/replace-installed --all
+# find / -type f -printf '%Tc %p\n' 2>/dev/null | grep -v " /proc" > /tmp/pv-after.txt
+
+main() {
+	if [ $(id -u) -ne 0 ]; then
+		_echo "This script must be run as root. Please try running this again with sudo or as a root user."
+		return 1
+	fi
+
+	# process command-line arguments; sets environment variables.
+	parseCommandLine "$@"
+	if [ $? -ne 0 ]; then return 1; fi
+
+	# call sh.polyverse.io's info script; results are exported as environment variables
+	exportInfo
+	if [ $? -ne 0 ]; then return 1; fi
+
+	case "$DISTRO" in
+		ubuntu)
+			apt_replaceInstalledPackages
+			if [ $? -ne 0 ]; then return 1; fi
+			;;
+		*)
+			_echo "This script doesn't currently support distro '$DISTRO'."
+			return 1
+			;;
+	esac
+
+	return 0
+}
+
+parseCommandLine() {
+	if [ "$1" = "replace-installed-elf" ]; then
+		shift
+	fi
+
+	PV_REPO_FILTER="repo.polyverse.io"
+
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--package)
+				shift
+				export PV_PACKAGE_LIST="$PV_PACKAGE_LIST $1"
+				;;
+			--log)
+				shift
+				export PV_LOGFILE="$1"
+				;;
+			--all)
+				export PV_REPO_FILTER=".*"
+				;;
+			*)
+				_echo "Error: unexpected argument '$1'."
+				return 1
+				;;
+
+		esac
+		shift
+	done
+
+	if [ -z "$PV_LOGFILE" ]; then
+		export PV_LOGFILE="/var/log/polyverse.log"
+	fi
+
+	if [ ! -f "$PV_LOGFILE" ]; then
+		touch "$PV_LOGFILE"
+	fi
+}
+
+exportInfo() {
+	_INFO="$(_eval "curl -s $PV_BASE_URL/main.sh | PV_BASE_URL=$PV_BASE_URL sh -s info")"
+	if [ $? -ne 0 ]; then
+		_echo "Unable to determine Linux distro info: $_INFO. Please contact support@polyverse.io."
+		return 1
+	fi
+
+	for _LINE in $_INFO; do
+		export $(echo $_LINE)
+	done
+
+	return 0
+}
+
+isELF() {
+	file $1 2>/dev/null | grep -q " ELF "
+	_EXIT_CODE=$?
+	return $_EXIT_CODE
+}
+
+apt_replaceInstalledPackages() {
+	if [ -z "$(cat /etc/apt/sources.list | grep -v ^# | fgrep "repo.polyverse.io")" ]; then
+		_echo "Error: It appears that Polymorphic Linux has not been installed yet. Please install first and then re-run this script."
+		return 1
+	fi
+
+	# comment-out all the lines in sources.list except for the ones from repo.polyverse.io
+	sed -in '/repo.polyverse.io/! s/^/#/' /etc/apt/sources.list
+
+	# run apt-get update so we only use the repo.polyverse.io index files
+	# TO DO: remove '2>/dev/null' once debian fixes https://github.com/Debian/apt/issues/79
+	#   W: Conflicting distribution: https://repo.polyverse.io/deb/ubuntu/bionic/binary_amd64 main/ InRelease (expected main/ but got bionic)
+	#   W: Conflicting distribution: https://repo.polyverse.io/deb/ubuntu/bionic-updates/binary_amd64 main/ InRelease (expected main/ but got bionic)
+	#   W: Conflicting distribution: https://repo.polyverse.io/deb/ubuntu/bionic-security/binary_amd64 main/ InRelease (expected main/ but got bionic)
+	#   N: Usage of apt_auth.conf(5) should be preferred over embedding login information directly in the sources.list(5) entry for 'https://repo.polyverse.io/deb/ubuntu/bionic/binary_amd64'
+	#   N: Usage of apt_auth.conf(5) should be preferred over embedding login information directly in the sources.list(5) entry for 'https://repo.polyverse.io/deb/ubuntu/bionic-updates/binary_amd64'
+	#   N: Usage of apt_auth.conf(5) should be preferred over embedding login information directly in the sources.list(5) entry for 'https://repo.polyverse.io/deb/ubuntu/bionic-security/binary_amd64'
+	_eval "apt-get update -y 2>/dev/null"
+	if [ $? -ne 0 ]; then return 1; fi
+
+	# revert the commenting-out in sources.list in case the script is killed before the end
+	sed -in 's/^#//g' /etc/apt/sources.list
+
+	# install the 'file' package if it isn't already installed; needed to determine if a file is ELF.
+	_eval "file --version >/dev/null 2>&1"
+	if [ $? -eq 127 ]; then
+		_eval "apt-get install -y file"
+		if [ $? -ne 0 ]; then return 1; fi
+	fi
+
+	if [ -z "$PV_PACKAGE_LIST" ]; then
+		# output of 'apt list --installed' looks like:
+		#
+		#   adduser/xenial,now 3.113+nmu3ubuntu4 all [installed]
+		#   apt/xenial-updates,now 1.2.29ubuntu0.1 amd64 [installed]
+		#   apt-transport-https/xenial-updates,now 1.2.29ubuntu0.1 amd64 [installed]
+		#
+		APT_LIST_INSTALLED="$(_eval "apt list --installed 2>/dev/null | fgrep \"[installed\"")"
+
+		# transform output to "adduser=3.113+nmu3ubuntu4 apt=1.2.29ubuntu0.1 apt-transport-https=1.2.29ubuntu0.1"
+		export PV_PACKAGE_LIST="$(_eval "echo \"$APT_LIST_INSTALLED\" | sed 's/ /\//g' | awk -F/ '{print \$1\"=\"\$3}' | xargs")"
+	fi
+
+	# apt-get download downloads to current directory, so cd to a permissive folder
+	cd /tmp
+
+	_eval "mkdir -p /tmp/pv/info"
+	if [ $? -ne 0 ]; then return 1; fi
+
+	for PACKAGE in $PV_PACKAGE_LIST; do
+		_log "Processing '$PACKAGE'..."
+		deb_replacePackage $PACKAGE
+	done
+
+	# -f will correct broken dependencies, but this should be a no-op
+	# -y = assume yes
+	_eval "apt-get install -yf"
+
+	_eval "rm -frd /tmp/pv"
+
+	return 0
+}
+
+deb_replacePackage() {
+		if [ $# -ne 1 ]; then
+			_echo "Error: deb_replacePackage() expected 1 argument but got '$#'."
+			return 1
+		fi
+
+		_PKG="$1"
+		_PKG_NAME="$(_eval "echo $_PKG | awk -F= '{print \$1}'")"
+		_PKG_VER="$(_eval "echo $_PKG | awk -F= '{print \$2}' | sed 's/:/%3a/g'")"
+
+
+		_log "Downloading package '$_PKG'..."
+		#_RESULT_FILE=`mktemp`
+		_eval "apt-get download $_PKG"
+		if [ $? -ne 0 ]; then
+			_echo "Error downloading package '$PKG'."
+			return 1
+		fi
+
+		#if [ -z "$(cat "$_RESULT_FILE" | grep polyverse)" ]; then
+		#	_echo "NOT FROM POLYVERSE. SKIPPING."
+		#	return 0
+		#fi
+
+		_DEB_FILENAME="$(ls /tmp/${_PKG_NAME}_${_PKG_VER}*.deb 2>/dev/null | xargs)"
+		if [ -z "$_DEB_FILENAME" ]; then
+			_echo "Warning: Unable to determine .deb file (_PKG: ${_PKG})."
+			return 1
+		fi
+
+		_eval "mkdir $_DEB_FILENAME~"
+		_eval "dpkg-deb -R $_DEB_FILENAME $_DEB_FILENAME~"
+		FILES=`mktemp`
+		find $_DEB_FILENAME~ -not -type d > $FILES
+		while IFS= read -r _FILE; do
+			if [ $(isELF $_FILE; echo $?) -eq 0 ]; then
+				_log "Leaving '$_FILE'."
+				continue
+			fi
+			if [ "$_FILE" = "$_DEB_FILENAME~/DEBIAN/control" ]; then
+				_log "Leaving '$_FILE'."
+				continue
+			fi
+			if [ "$_FILE" = "$_DEB_FILENAME~/DEBIAN/md5sums" ]; then
+				_log "Leaving '$_FILE'."
+				continue
+			fi
+
+			_log "Removing '$_FILE'."
+			_eval "rm -f $_FILE"
+		done < "$FILES"
+		_eval "rm $FILES"
+
+		_DIRECTORIES="$(find $_DEB_FILENAME~ -type d)"
+		for _DIRECTORY in $_DIRECTORIES; do
+			_log "Processing directory '$_DIRECTORY'..."
+			if [ -z "$(find $_DIRECTORY -type f 2>/dev/null)" ]; then
+				_log "Removing directory '$_DIRECTORY'..."
+				_eval "rm -frd $_DIRECTORY"
+			fi
+		done
+
+		_eval "dpkg-deb -b $_DEB_FILENAME~ $_DEB_FILENAME"
+		LISTFILE="$(ls /var/lib/dpkg/info/${_PKG_NAME}[.:]*list)"
+		_eval "mv /var/lib/dpkg/info/${_PKG_NAME}[.:]* /tmp/pv/info 2>/dev/null"
+		_eval "rm /tmp/pv/info/*.list 2>/dev/null"
+		_eval "rm /tmp/pv/info/*.md5sums 2>/dev/null"
+		_eval "dpkg-deb -c $_DEB_FILENAME | awk {'print $6'} | cut -f2- -d. | sed 's|^/$|/.|' | sed 's|/$||' > $LISTFILE"
+		_eval "rm -frd $_DEB_FILENAME~ 2>/dev/null"
+		_eval "dpkg --unpack $_DEB_FILENAME"
+
+		#dpkg --configure --pending
+		_eval "dpkg --configure ${_PKG_NAME}"
+		_eval "mv /tmp/pv/info/${_PKG_NAME}[.:]* /var/lib/dpkg/info/ 2>/dev/null"
+
+		# this should be a no-op, but run it to be sure
+		#_eval "dpkg --configure ${_PKG_NAME}"
+		#if [ $? -ne 0 ]; then return 1; fi
+
+		# clean-up
+		_eval "rm -f ${_DEB_FILENAME} >/dev/null 2>&1"
+		#if [ $? -ne 0 ]; then return 1; fi
+}
+
+_echo() {
+	if [ -z "$PV_LOGFILE" ]; then
+		echo -e "$1" >&2
+	else   
+		echo -e "$1" | tee -a $PV_LOGFILE >&2
+	fi
+}
+
+_debugln() { 
+	if [ ! -z "$PV_DEBUG" ]; then
+		_echo "PV_DEBU: $1"
+	fi
+}
+
+_log() {
+	echo -e "$1" >> $PV_LOGFILE
+}
+
+_eval() {
+	_log "_eval() \$1:\"$1\""
+
+	if [ -z "$PV_LOGFILE" ]; then
+		_echo "PV_LOGFILE global variable is empty."
+		return 1
+	fi
+
+	# https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
+	eval "$1" > >(tee -a $PV_LOGFILE) 2> >(tee -a $PV_LOGFILE >&2)
+	_EXITCODE=$?
+
+	_log "_eval() \$_EXITCODE: $_EXITCODE"
+
+	return $_EXITCODE
+}
+
+main "$@"
+exit $?
