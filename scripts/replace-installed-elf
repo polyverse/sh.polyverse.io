@@ -274,6 +274,17 @@ updateChecksumFile() {
 
 	_TARGET_MD5_FILE="$(ls /var/lib/dpkg/info/${_PACKAGE_NAME}[.:]*md5sums)"
 
+	# work-around if a package has an amd64 and i386 version of the .md5sums file
+	if [ $(echo "$_TARGET_MD5_FILE" | wc -l) -ne 1 ]; then
+		_TARGET_MD5_FILE="$(echo "$_TARGET_MD5_FILE" | fgrep ":amd64.md5sums")"
+	fi
+
+	# make sure we have one and only one .md5sums file
+	if [ $(echo "$_TARGET_MD5_FILE" | wc -l) -ne 1 ]; then
+		_log "Error: Unable to determine .md5sums file for '${_PACKAGE_NAME}'."
+		return 1
+	fi
+
 	# NOTE: different filenames can have the same sha
 	# 971c13bfde62ca04cfb42f740e44b262  bin/kill
 	# 971c13bfde62ca04cfb42f740e44b262  usr/bin/skill
