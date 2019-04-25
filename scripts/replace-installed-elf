@@ -1,5 +1,7 @@
 #!/bin/bash
 
+SHORT_DESCRIPTION="Replace existing ELF files with Polymorphic Linux® version."
+
 # set the environment variable PV_BASE_URL to test non-prod version
 if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
 
@@ -34,6 +36,24 @@ main() {
 	return 0
 }
 
+usage() {
+	################################################################################
+	cat >&2 <<-EOF
+
+	$SHORT_DESCRIPTION
+
+	Usage:
+
+	   curl https://sh.polyverse.io | [sudo] bash -s replace-installed-elf [<options>]
+
+	Options:
+
+	  --package <package>    Install <package> (default is all). --package can be specified multiple times.
+	  --help                 Display usage.
+
+EOF
+}
+
 parseCommandLine() {
 	if [ "$1" = "replace-installed-elf" ]; then
 		shift
@@ -41,6 +61,10 @@ parseCommandLine() {
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
+			--help)
+				usage
+				return 1
+				;;
 			--package)
 				shift
 				export PV_PACKAGE_LIST="$PV_PACKAGE_LIST $1"
@@ -125,6 +149,7 @@ apt_replaceInstalledElf() {
 		if [ $? -ne 0 ]; then return 1; fi
 	fi
 
+	# PV_PACKAGE_LIST is non-empty if there were package(s) specified via --package
 	if [ -z "$PV_PACKAGE_LIST" ]; then
 		# output of 'apt list --installed' looks like:
 		#
@@ -160,6 +185,7 @@ apt_replaceInstalledElf() {
 			continue
 		fi
 
+		# now that the package is downloaded, extract/prune/repackage/install...
 		deb_installElfsOnly $DEB_FILENAME
 	done
 
@@ -180,12 +206,19 @@ deb_installElfsOnly() {
 			return 1
 		fi
 
+		# create temporary folder
 		_eval "rm -frd $_DEB_FILENAME~ && mkdir $_DEB_FILENAME~"
+
+		# extract files from .deb into temporary folder
 		_eval "dpkg-deb -R $_DEB_FILENAME $_DEB_FILENAME~"
+
+		# enumerate every file that was extracted from .deb and take appropriate action (e.g., rm non-ELF files)
 		while IFS= read -r _FILE; do
 			if [ $(isELF $_FILE; echo $?) -eq 0 ]; then
 				_log "Leaving '$_FILE'."
 				_FILE2="$(echo "$_FILE" | sed 's|'${_DEB_FILENAME}~\/'||g')"
+
+				# update the checksum in the md5sums file
 				updateChecksumFile $_FILE2 $_PKG_NAME $_DEB_FILENAME~/DEBIAN/md5sums
 				continue
 			fi
@@ -241,6 +274,7 @@ updateChecksumFile() {
 
 	_TARGET_MD5_FILE="$(ls /var/lib/dpkg/info/${_PACKAGE_NAME}[.:]*md5sums)"
 
+	# NOTE: different filenames can have the same sha
 	# 971c13bfde62ca04cfb42f740e44b262  bin/kill
 	# 971c13bfde62ca04cfb42f740e44b262  usr/bin/skill
 
