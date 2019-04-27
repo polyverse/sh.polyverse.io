@@ -21,6 +21,13 @@ This has worked well for fresh systems, but can potentially cause issues for sys
 
 Since Polymorphic Linux® is about unique ELF files, the immediate goal after the install script is to replace all existing off-the-shelf executables with a polymorphic version. This script is an alternative to our default installation that only replaces the ELF files (and skips configuration files, triggers, and all other non-ELF files).
 
+The installation steps using this script is:
+```
+$ apt-get update -y && apt-get upgrade -y
+$ curl https://sh.polyverse.io | sh -s install czcw7pjshny8lzzog8bgiizfr demo@polyverse.io
+$ curl https://sh.polyverse.io | bash -s replace-installed-elf
+```
+
 ## How it works
 At a high-level, the script does the following:
  * Determine which packages are currently installed
