@@ -22,6 +22,8 @@ main() {
 	exportInfo
 	if [ $? -ne 0 ]; then return 1; fi
 
+	_log "replace-installed-elf (start: $(date))"
+
 	case "$DISTRO" in
 		ubuntu)
 			apt_replaceInstalledElf
@@ -32,6 +34,8 @@ main() {
 			return 1
 			;;
 	esac
+
+	_log "replace-installed-elf (finish: $(date))"
 
 	return 0
 }
@@ -138,7 +142,7 @@ apt_replaceInstalledElf() {
 	_eval "apt-get update -y 2>/dev/null"
 	if [ $? -ne 0 ]; then return 1; fi
 
-	# revert the commenting-out in sources.list in case the script is killed before the end
+	# revert the commenting-out in sources.list now that we've updated the index
 	_eval "sed -in 's/^#//g' /etc/apt/sources.list"
 	if [ $? -ne 0 ]; then return 1; fi
 
@@ -153,9 +157,7 @@ apt_replaceInstalledElf() {
 	if [ -z "$PV_PACKAGE_LIST" ]; then
 		# output of 'apt list --installed' looks like:
 		#
-		#   adduser/xenial,now 3.113+nmu3ubuntu4 all [installed]
 		#   apt/xenial-updates,now 1.2.29ubuntu0.1 amd64 [installed]
-		#   apt-transport-https/xenial-updates,now 1.2.29ubuntu0.1 amd64 [installed]
 		#
 		APT_LIST_INSTALLED="$(_eval "apt list --installed 2>/dev/null | fgrep \"[installed\"")"
 
@@ -166,17 +168,12 @@ apt_replaceInstalledElf() {
 	# apt-get download downloads to current directory, so cd to a permissive folder
 	cd /tmp
 
-	_eval "mkdir -p /tmp/pv/info"
-	if [ $? -ne 0 ]; then return 1; fi
-
 	for PACKAGE in $PV_PACKAGE_LIST; do
 		_echo "Processing '$PACKAGE' ..."
 
-		_eval "apt-get download $PACKAGE 2>&1"
-		if [ $? -ne 0 ]; then
-			_echo "Info: Polymorphic version of '$PACKAGE' unavailable. Skipping."
-			continue
-		fi
+		RESULT="$(_eval "apt-get download $PACKAGE 2>&1")"
+		if [ $? -ne 0 ]; then continue; fi
+		_echo "$RESULT"
 
 		DEB_FILENAME="$(echo "$PACKAGE" | awk -F= '{print $1}')_$(echo "$PACKAGE" | awk -F= '{print $2}')"
 		DEB_FILENAME="$(ls /tmp/$(encodeFilename $DEB_FILENAME)_*.deb 2>/dev/null | xargs)"
@@ -188,8 +185,6 @@ apt_replaceInstalledElf() {
 		# now that the package is downloaded, extract/prune/repackage/install...
 		deb_installElfsOnly $DEB_FILENAME
 	done
-
-	_eval "rm -frd /tmp/pv 2>/dev/null"
 
 	# after restoring (un-commenting) sources.list, we haven't updated the index since
 	_eval "apt-get update -y 2>/dev/null"
@@ -214,14 +209,21 @@ deb_installElfsOnly() {
 
 		# enumerate every file that was extracted from .deb and take appropriate action (e.g., rm non-ELF files)
 		while IFS= read -r _FILE; do
-			if [ $(isELF $_FILE; echo $?) -eq 0 ]; then
+			_RELATIVE_FILE="$(echo "$_FILE" | sed 's|'${_DEB_FILENAME}~\/'||g')"
+
+			# triggers can be an ELF file (e.g., preinst for bash)
+			if [ "$(echo "$_RELATIVE_FILE" | awk -F/ '{print $1}')" != "DEBIAN" ] && [ $(isELF $_FILE; echo $?) -eq 0 ]; then
 				_log "Leaving '$_FILE'."
-				_FILE2="$(echo "$_FILE" | sed 's|'${_DEB_FILENAME}~\/'||g')"
 
 				# update the checksum in the md5sums file
-				updateChecksumFile $_FILE2 $_PKG_NAME $_DEB_FILENAME~/DEBIAN/md5sums
+				updateChecksumFile $_RELATIVE_FILE $_PKG_NAME $_DEB_FILENAME~/DEBIAN/md5sums
+				if [ $? -ne 0 ]; then
+					_echo "Warning: updateChecksumFile() returned non-zero. Skipping..."
+					return 1
+				fi
 				continue
 			fi
+
 			if [ "$_FILE" = "$_DEB_FILENAME~/DEBIAN/control" ] || [ "$_FILE" = "$_DEB_FILENAME~/DEBIAN/md5sums" ]; then
 				_log "Leaving '$_FILE'."
 				continue
@@ -245,13 +247,16 @@ deb_installElfsOnly() {
 		_eval "dpkg-deb -b $_DEB_FILENAME~ $_DEB_FILENAME"
 
 		# create the .list file
-		LISTFILE="$(ls /var/lib/dpkg/info/${_PKG_NAME}[.:]*list 2>/dev/null)"
-		if [ -z "$LISTFILE" ]; then
-			LISTFILE="/var/lib/dpkg/info/${_PKG_NAME}.list"
+		LISTFILE="$(ensureFilenameExistsAndTryArchVersionIfNot "${_PKG_NAME}" "/var/lib/dpkg/info/${_PKG_NAME}.list")"
+		if [ $? -ne 0 ]; then
+			_echo "Error: cannot determine .list file in /var/lib/dpkg/info. Skipping."
+			return 1
 		fi
+		_log "LISTFILE: $LISTFILE"
 
 		# move all the package's metadata from /var/lib/dpkg/info to a temp folder
-		_eval "mv /var/lib/dpkg/info/${_PKG_NAME}[.:]* /tmp/pv/info 2>/dev/null"
+		_eval "mkdir $_DEB_FILENAME~/temp"
+		_eval "mv /var/lib/dpkg/info/${_PKG_NAME}[.:]* 2>/dev/null $_DEB_FILENAME~/temp"
 
 		# create the .list file that corresponds to the contents of this abridged .deb file
 		_eval "dpkg-deb -c $_DEB_FILENAME | awk {'print \$6'} | cut -f2- -d. | sed 's|^/\$|/.|' | sed 's|/\$||' > $LISTFILE"
@@ -261,10 +266,31 @@ deb_installElfsOnly() {
 		if [ $? -ne 0 ]; then return 1; fi
 
 		# clean-up
-		_eval "mv /tmp/pv/info/${_PKG_NAME}[.:]* /var/lib/dpkg/info/ 2>/dev/null"
+		_eval "mv $_DEB_FILENAME~/temp/* /var/lib/dpkg/info/ 2>/dev/null"
 		_eval "rm -frd $_DEB_FILENAME~ 2>/dev/null"
 		_eval "rm -f ${_DEB_FILENAME} >/dev/null 2>&1"
-		if [ $? -ne 0 ]; then return 1; fi
+}
+
+
+ensureFilenameExistsAndTryArchVersionIfNot() {
+	_PACKAGE_NAME="$1"
+	_FILENAME="$2"
+
+	# if _FILENAME exists, just use that
+	if [ -f "$_FILENAME" ]; then
+		echo "$_FILENAME"
+		return 0
+	fi
+
+	# _FILENAME doesn't exist, so try an arch-specific version
+	_FILENAME="$(echo "$_FILENAME" | sed 's/'$_PACKAGE_NAME'\./'$_PACKAGE_NAME':'$ARCH'\./g')"
+	if [ -f "$_FILENAME" ]; then
+		echo "$_FILENAME"
+		return 0
+	fi
+
+	_log "Error: ensureFilenameExistsAndTryArchVersionIfNot() _FILENAME: '$_FILENAME'."
+	return 1
 }
 
 updateChecksumFile() {
@@ -274,13 +300,8 @@ updateChecksumFile() {
 
 	_TARGET_MD5_FILE="$(ls /var/lib/dpkg/info/${_PACKAGE_NAME}[.:]*md5sums)"
 
-	# work-around if a package has an amd64 and i386 version of the .md5sums file
-	if [ $(echo "$_TARGET_MD5_FILE" | wc -l) -ne 1 ]; then
-		_TARGET_MD5_FILE="$(echo "$_TARGET_MD5_FILE" | fgrep ":amd64.md5sums")"
-	fi
-
-	# make sure we have one and only one .md5sums file
-	if [ $(echo "$_TARGET_MD5_FILE" | wc -l) -ne 1 ]; then
+	_TARGET_MD5_FILE="$(ensureFilenameExistsAndTryArchVersionIfNot "${_PACKAGE_NAME}" "/var/lib/dpkg/info/${_PACKAGE_NAME}.md5sums")"
+	if [ $? -ne 0 ]; then
 		_log "Error: Unable to determine .md5sums file for '${_PACKAGE_NAME}'."
 		return 1
 	fi
@@ -299,14 +320,15 @@ updateChecksumFile() {
 		_TARGET_MD5="$(cat $_TARGET_MD5_FILE | fgrep " $_FILENAME" 2>/dev/null)"
 	fi
 
-	_log "_FILENAME: $_FILENAME, _PACKAGE_NAME: $_PACKAGE_NAME, _SOURCE_MD5_FILE: $_SOURCE_MD5_FILE, _SOURCE_MD5: $_SOURCE_MD5, _TARGET_MD5_FILE: $_TARGET_MD5_FILE, _TARGET_MD5: $_TARGET_MD5"
+	_log "updateChecksumFile() _FILENAME: $_FILENAME, _PACKAGE_NAME: $_PACKAGE_NAME, _SOURCE_MD5_FILE: $_SOURCE_MD5_FILE, _SOURCE_MD5: $_SOURCE_MD5, _TARGET_MD5_FILE: $_TARGET_MD5_FILE, _TARGET_MD5: $_TARGET_MD5"
 
-	if [ ! -z "$_SOURCE_MD5" ] && [ ! -z "$_TARGET_MD5" ]; then
-		_eval "sed -i 's/$(sedEscape "$_TARGET_MD5")/$(sedEscape "$_SOURCE_MD5")/g' $_TARGET_MD5_FILE"
-		return $?
+	if [ -z "$_SOURCE_MD5" ] || [ -z "$_TARGET_MD5" ]; then
+		_log "Warning: updateChecksumFile() source or target md5 is blank."
+		return 0
 	fi
 
-	return 1
+	_eval "sed -i 's/$(sedEscape "$_TARGET_MD5")/$(sedEscape "$_SOURCE_MD5")/g' $_TARGET_MD5_FILE"
+	return $?
 }
 
 encodeFilename() {
@@ -348,7 +370,6 @@ _eval() {
 		return 1
 	fi
 
-	# https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
 	eval "$1" > >(tee -a $PV_LOGFILE) 2> >(tee -a $PV_LOGFILE >&2)
 	_EXITCODE=$?
 
