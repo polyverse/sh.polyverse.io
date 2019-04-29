@@ -5,8 +5,8 @@ cat docs/header.txt | grep -v ^# > usage.txt
 SCRIPTS="$(ls scripts | grep -v \\.)"
 
 for SCRIPT in $SCRIPTS; do
-	PAD="$(printf '%0.1s' " "{1..20})"
-	PAD_LENGTH="20"
+	PAD="$(printf '%0.1s' " "{1..25})"
+	PAD_LENGTH="25"
 
 	if [ ${#SCRIPT} -gt $PAD_LENGTH ]; then
 		echo "ERROR: script name must be <= $PAD_LENGTH."

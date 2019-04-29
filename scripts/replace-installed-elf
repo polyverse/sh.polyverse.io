@@ -1,0 +1,382 @@
+#!/bin/bash
+
+SHORT_DESCRIPTION="Replace existing ELF files with Polymorphic Linux® version."
+
+# set the environment variable PV_BASE_URL to test non-prod version
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
+
+if [ -z "$(echo $SHELL | grep bash)" ]; then
+	(>&2 echo "This script must be run with bash. Usage: curl $PV_BASE_URL | bash -s replace-installed")
+	exit 1
+fi
+
+main() {
+	# process command-line arguments; sets environment variables.
+	parseCommandLine "$@"
+	if [ $? -ne 0 ]; then return 1; fi
+
+	checkPrerequisites
+	if [ $? -ne 0 ]; then return 1; fi
+
+	# call sh.polyverse.io's info script; results are exported as environment variables
+	exportInfo
+	if [ $? -ne 0 ]; then return 1; fi
+
+	_log "replace-installed-elf (start: $(date))"
+
+	case "$DISTRO" in
+		ubuntu)
+			apt_replaceInstalledElf
+			if [ $? -ne 0 ]; then return 1; fi
+			;;
+		*)
+			_echo "This script doesn't currently support distro '$DISTRO'."
+			return 1
+			;;
+	esac
+
+	_log "replace-installed-elf (finish: $(date))"
+
+	return 0
+}
+
+usage() {
+	################################################################################
+	cat >&2 <<-EOF
+
+	$SHORT_DESCRIPTION
+
+	Usage:
+
+	   curl https://sh.polyverse.io | [sudo] bash -s replace-installed-elf [<options>]
+
+	Options:
+
+	  --package <package>    Install <package> (default is all). --package can be specified multiple times.
+	  --help                 Display usage.
+
+EOF
+}
+
+parseCommandLine() {
+	if [ "$1" = "replace-installed-elf" ]; then
+		shift
+	fi
+
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--help)
+				usage
+				return 1
+				;;
+			--package)
+				shift
+				export PV_PACKAGE_LIST="$PV_PACKAGE_LIST $1"
+				;;
+			--log)
+				shift
+				export PV_LOGFILE="$1"
+				;;
+			*)
+				_echo "Error: unexpected argument '$1'."
+				return 1
+				;;
+		esac
+		shift
+	done
+
+	if [ -z "$PV_LOGFILE" ]; then
+		export PV_LOGFILE="/var/log/polyverse.log"
+	fi
+
+	if [ ! -f "$PV_LOGFILE" ]; then
+		touch "$PV_LOGFILE"
+	fi
+}
+
+checkPrerequisites() {
+	if [ $(id -u) -ne 0 ]; then
+		_echo "This script must be run as root. Please try running this again with sudo or as a root user."
+		return 1
+	fi
+
+	curl >/dev/null 2>&1
+	if [ $? -eq 127 ]; then
+		_echo "This script requires curl. Please install it and try running this again."
+		return 1
+	fi
+
+	return 0
+}
+
+exportInfo() {
+	_INFO="$(_eval "curl -s $PV_BASE_URL/main.sh | PV_BASE_URL=$PV_BASE_URL sh -s info")"
+	if [ $? -ne 0 ]; then
+		_echo "Unable to determine Linux distro info: $_INFO. Please contact support@polyverse.io."
+		return 1
+	fi
+
+	for _LINE in $_INFO; do
+		export $(echo $_LINE)
+	done
+
+	return 0
+}
+
+isELF() {
+	file $1 2>/dev/null | grep -q " ELF "
+	return $?
+}
+
+apt_replaceInstalledElf() {
+	if [ -z "$(cat /etc/apt/sources.list | grep -v ^# | fgrep "repo.polyverse.io")" ]; then
+		_echo "Error: It appears that Polymorphic Linux has not been installed yet. Please install first and then re-run this script."
+		return 1
+	fi
+
+	# comment-out all the lines in sources.list except for the ones from repo.polyverse.io
+	_eval "sed -in '/repo.polyverse.io/! s/^/#/' /etc/apt/sources.list"
+	if [ $? -ne 0 ]; then return 1; fi
+
+	# run apt-get update so we only use the repo.polyverse.io index files
+	_eval "apt-get update -y 2>/dev/null"
+	if [ $? -ne 0 ]; then return 1; fi
+
+	# revert the commenting-out in sources.list now that we've updated the index
+	_eval "sed -in 's/^#//g' /etc/apt/sources.list"
+	if [ $? -ne 0 ]; then return 1; fi
+
+	# install the 'file' package if it isn't already installed; needed to determine if a file is ELF.
+	_eval "file --version >/dev/null 2>&1"
+	if [ $? -eq 127 ]; then
+		_eval "apt-get install -y file"
+		if [ $? -ne 0 ]; then return 1; fi
+	fi
+
+	# PV_PACKAGE_LIST is non-empty if there were package(s) specified via --package
+	if [ -z "$PV_PACKAGE_LIST" ]; then
+		# output of 'apt list --installed' looks like:
+		#
+		#   apt/xenial-updates,now 1.2.29ubuntu0.1 amd64 [installed]
+		#
+		APT_LIST_INSTALLED="$(_eval "apt list --installed 2>/dev/null | fgrep \"[installed\"")"
+
+		# transform output to "adduser=3.113+nmu3ubuntu4 apt=1.2.29ubuntu0.1 apt-transport-https=1.2.29ubuntu0.1"
+		export PV_PACKAGE_LIST="$(_eval "echo \"$APT_LIST_INSTALLED\" | sed 's/ /\//g' | awk -F/ '{print \$1\"=\"\$3}' | xargs")"
+	fi
+
+	# apt-get download downloads to current directory, so cd to a permissive folder
+	cd /tmp
+
+	for PACKAGE in $PV_PACKAGE_LIST; do
+		_echo "Processing '$PACKAGE' ..."
+
+		RESULT="$(_eval "apt-get download $PACKAGE 2>&1")"
+		if [ $? -ne 0 ]; then continue; fi
+		_echo "$RESULT"
+
+		DEB_FILENAME="$(echo "$PACKAGE" | awk -F= '{print $1}')_$(echo "$PACKAGE" | awk -F= '{print $2}')"
+		DEB_FILENAME="$(ls /tmp/$(encodeFilename $DEB_FILENAME)_*.deb 2>/dev/null | xargs)"
+		if [ -z "$DEB_FILENAME" ]; then
+			_echo "Warning: Unable to determine downloaded .deb filename for package '$PACKAGE'. Skipping."
+			continue
+		fi
+
+		# now that the package is downloaded, extract/prune/repackage/install...
+		deb_installElfsOnly $DEB_FILENAME
+	done
+
+	# after restoring (un-commenting) sources.list, we haven't updated the index since
+	_eval "apt-get update -y 2>/dev/null"
+
+	return 0
+}
+
+deb_installElfsOnly() {
+		_DEB_FILENAME="$1"
+		_PKG_NAME="$(echo "$_DEB_FILENAME" | sed 's/\/tmp\///g' | sed 's/_.*//g')"
+
+		if [ ! -f "$_DEB_FILENAME" ]; then
+			_echo "Warning: file '$_DEB_FILENAME' missing."
+			return 1
+		fi
+
+		# create temporary folder
+		_eval "rm -frd $_DEB_FILENAME~ && mkdir $_DEB_FILENAME~"
+
+		# extract files from .deb into temporary folder
+		_eval "dpkg-deb -R $_DEB_FILENAME $_DEB_FILENAME~"
+
+		# enumerate every file that was extracted from .deb and take appropriate action (e.g., rm non-ELF files)
+		while IFS= read -r _FILE; do
+			_RELATIVE_FILE="$(echo "$_FILE" | sed 's|'${_DEB_FILENAME}~\/'||g')"
+
+			# triggers can be an ELF file (e.g., preinst for bash)
+			if [ "$(echo "$_RELATIVE_FILE" | awk -F/ '{print $1}')" != "DEBIAN" ] && [ $(isELF $_FILE; echo $?) -eq 0 ]; then
+				_log "Leaving '$_FILE'."
+
+				# update the checksum in the md5sums file
+				updateChecksumFile $_RELATIVE_FILE $_PKG_NAME $_DEB_FILENAME~/DEBIAN/md5sums
+				if [ $? -ne 0 ]; then
+					_echo "Warning: updateChecksumFile() returned non-zero. Skipping..."
+					return 1
+				fi
+				continue
+			fi
+
+			if [ "$_FILE" = "$_DEB_FILENAME~/DEBIAN/control" ] || [ "$_FILE" = "$_DEB_FILENAME~/DEBIAN/md5sums" ]; then
+				_log "Leaving '$_FILE'."
+				continue
+			fi
+
+			_log "Removing '$_FILE'."
+			_eval "rm -f \"$_FILE\""
+		done <<< "$(find $_DEB_FILENAME~ -not -type d)"
+
+		# since we remove a bunch of files, there are probably empty folders that we should remove before packaging
+		_DIRECTORIES="$(find $_DEB_FILENAME~ -type d)"
+		for _DIRECTORY in $_DIRECTORIES; do
+			_log "Processing directory '$_DIRECTORY'..."
+			if [ -z "$(find $_DIRECTORY -type f 2>/dev/null)" ]; then
+				_log "Removing directory '$_DIRECTORY'..."
+				_eval "rm -frd $_DIRECTORY"
+			fi
+		done
+
+		# build the stripped (ELF files only) .deb file
+		_eval "dpkg-deb -b $_DEB_FILENAME~ $_DEB_FILENAME"
+
+		# create the .list file
+		LISTFILE="$(ensureFilenameExistsAndTryArchVersionIfNot "${_PKG_NAME}" "/var/lib/dpkg/info/${_PKG_NAME}.list")"
+		if [ $? -ne 0 ]; then
+			_echo "Error: cannot determine .list file in /var/lib/dpkg/info. Skipping."
+			return 1
+		fi
+		_log "LISTFILE: $LISTFILE"
+
+		# move all the package's metadata from /var/lib/dpkg/info to a temp folder
+		_eval "mkdir $_DEB_FILENAME~/temp"
+		_eval "mv /var/lib/dpkg/info/${_PKG_NAME}[.:]* 2>/dev/null $_DEB_FILENAME~/temp"
+
+		# create the .list file that corresponds to the contents of this abridged .deb file
+		_eval "dpkg-deb -c $_DEB_FILENAME | awk {'print \$6'} | cut -f2- -d. | sed 's|^/\$|/.|' | sed 's|/\$||' > $LISTFILE"
+
+		# install the .deb file; files in the .deb file are placed in their target location
+		_eval "dpkg --install $_DEB_FILENAME"
+		if [ $? -ne 0 ]; then return 1; fi
+
+		# clean-up
+		_eval "mv $_DEB_FILENAME~/temp/* /var/lib/dpkg/info/ 2>/dev/null"
+		_eval "rm -frd $_DEB_FILENAME~ 2>/dev/null"
+		_eval "rm -f ${_DEB_FILENAME} >/dev/null 2>&1"
+}
+
+
+ensureFilenameExistsAndTryArchVersionIfNot() {
+	_PACKAGE_NAME="$1"
+	_FILENAME="$2"
+
+	# if _FILENAME exists, just use that
+	if [ -f "$_FILENAME" ]; then
+		echo "$_FILENAME"
+		return 0
+	fi
+
+	# _FILENAME doesn't exist, so try an arch-specific version
+	_FILENAME="$(echo "$_FILENAME" | sed 's/'$_PACKAGE_NAME'\./'$_PACKAGE_NAME':'$ARCH'\./g')"
+	if [ -f "$_FILENAME" ]; then
+		echo "$_FILENAME"
+		return 0
+	fi
+
+	_log "Error: ensureFilenameExistsAndTryArchVersionIfNot() _FILENAME: '$_FILENAME'."
+	return 1
+}
+
+updateChecksumFile() {
+	_FILENAME="$1"
+	_PACKAGE_NAME="$2"
+	_SOURCE_MD5_FILE="$3"
+
+	_TARGET_MD5_FILE="$(ls /var/lib/dpkg/info/${_PACKAGE_NAME}[.:]*md5sums)"
+
+	_TARGET_MD5_FILE="$(ensureFilenameExistsAndTryArchVersionIfNot "${_PACKAGE_NAME}" "/var/lib/dpkg/info/${_PACKAGE_NAME}.md5sums")"
+	if [ $? -ne 0 ]; then
+		_log "Error: Unable to determine .md5sums file for '${_PACKAGE_NAME}'."
+		return 1
+	fi
+
+	# NOTE: different filenames can have the same sha
+	# 971c13bfde62ca04cfb42f740e44b262  bin/kill
+	# 971c13bfde62ca04cfb42f740e44b262  usr/bin/skill
+
+	_SOURCE_MD5="$(cat $_SOURCE_MD5_FILE | grep " $_FILENAME\$" 2>/dev/null)"
+	if [ -z "$_SOURCE_MD5" ]; then
+		# special handling for things that break greg regex like "usr/bin/[" results in "grep: Unmatched [ or [^"
+		_SOURCE_MD5="$(cat $_SOURCE_MD5_FILE | fgrep " $_FILENAME" 2>/dev/null)"
+	fi
+	_TARGET_MD5="$(cat $_TARGET_MD5_FILE | grep " $_FILENAME\$" 2>/dev/null)"
+	if [ -z "$_TARGET_MD5" ]; then
+		_TARGET_MD5="$(cat $_TARGET_MD5_FILE | fgrep " $_FILENAME" 2>/dev/null)"
+	fi
+
+	_log "updateChecksumFile() _FILENAME: $_FILENAME, _PACKAGE_NAME: $_PACKAGE_NAME, _SOURCE_MD5_FILE: $_SOURCE_MD5_FILE, _SOURCE_MD5: $_SOURCE_MD5, _TARGET_MD5_FILE: $_TARGET_MD5_FILE, _TARGET_MD5: $_TARGET_MD5"
+
+	if [ -z "$_SOURCE_MD5" ] || [ -z "$_TARGET_MD5" ]; then
+		_log "Warning: updateChecksumFile() source or target md5 is blank."
+		return 0
+	fi
+
+	_eval "sed -i 's/$(sedEscape "$_TARGET_MD5")/$(sedEscape "$_SOURCE_MD5")/g' $_TARGET_MD5_FILE"
+	return $?
+}
+
+encodeFilename() {
+	_str="$1"
+	_str="$(echo "$_str" | sed 's/:/%3a/g')"
+	echo "$_str"
+}
+
+sedEscape() {
+	_str="$1"
+	_str="$(echo "$_str" | sed 's/\//\\\//g')"
+	_str="$(echo "$_str" | sed 's/\[/\\\[/g')"
+	echo "$_str"
+}
+
+_echo() {
+	if [ -z "$PV_LOGFILE" ]; then
+		echo -e "$1" >&2
+	else
+		echo -e "$1" | tee -a $PV_LOGFILE >&2
+	fi
+}
+
+_debugln() { 
+	if [ ! -z "$PV_DEBUG" ]; then
+		_echo "PV_DEBU: $1"
+	fi
+}
+
+_log() {
+	echo -e "$1" >> $PV_LOGFILE
+}
+
+_eval() {
+	_log "_eval() \$1:\"$1\""
+
+	if [ -z "$PV_LOGFILE" ]; then
+		_echo "PV_LOGFILE global variable is empty."
+		return 1
+	fi
+
+	eval "$1" > >(tee -a $PV_LOGFILE) 2> >(tee -a $PV_LOGFILE >&2)
+	_EXITCODE=$?
+
+	_log "_eval() \$_EXITCODE: $_EXITCODE"
+
+	return $_EXITCODE
+}
+
+main "$@"
+exit $?
