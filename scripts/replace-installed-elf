@@ -134,6 +134,10 @@ apt_replaceInstalledElf() {
 		return 1
 	fi
 
+	# clean out /var/cache/apt; see LNX-118
+	_eval "apt-get clean"
+	if [ $? -ne 0 ]; then return 1; fi
+
 	# comment-out all the lines in sources.list except for the ones from repo.polyverse.io
 	_eval "sed -in '/repo.polyverse.io/! s/^/#/' /etc/apt/sources.list"
 	if [ $? -ne 0 ]; then return 1; fi
