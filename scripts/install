@@ -240,7 +240,7 @@ displayPostInstallMessage() {
 
 	  ${_POST_INSTALL_CMD}
 
-	More information available at:
+	Please reboot after replacing packages (unless you're in a container). More information available at:
 
 	  https://polyverse.io/polymorphic-linux-installation-guide/
 
