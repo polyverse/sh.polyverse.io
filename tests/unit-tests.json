@@ -693,24 +693,6 @@
 		]
 	},
 	{
-		"name":"install._unicode_trim",
-		"source":"$PV_SH_ROOT/scripts/install",
-		"matrix":[
-			{
-				"env":[
-					"PV_ARGS=\"\u200BiFPiQVG5XJGe3bPQ6EuhMFCkR\"",
-					"PV_X_STDOUT=\"iFPiQVG5XJGe3bPQ6EuhMFCkR\"",
-					"PV_X_EXIT=0"
-				]
-			}
-		],
-		"cmd":"_unicode_trim \"$PV_ARGS\"",
-                "tests":[
-                        "\"$(cat $STDOUT)\" == \"$PV_X_STDOUT\"",
-                        "$EXIT -eq $PV_X_EXIT"
-                ]
-	},
-	{
 		"name":"install.generateDefaultPFRACs",
 		"source":"$PV_SH_ROOT/scripts/install",
 		"matrix":[
