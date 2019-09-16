@@ -94,10 +94,10 @@
 			},
 			{
 				"env":[
-					"PV_IMAGE=opensuse:42.3",
-					"PV_X_DISTRO=opensuse",
+					"PV_IMAGE=opensuse/leap",
+					"PV_X_DISTRO=opensuse-leap",
 					"PV_X_FORMAT=rpm",
-					"PV_X_RELEASE=42.3",
+					"PV_X_RELEASE=15.1",
 					"PV_X_ARCH=x86_64",
 					"PV_X_PACKAGE_MANAGER=zypper"
 				]
