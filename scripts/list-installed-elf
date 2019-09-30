@@ -13,7 +13,7 @@ $SHORT_DESCRIPTION
 
 Usage:
 
-  curl https://sh.polyverse.io | sh -s list-installed-elf [<options>]
+  curl https://sh.polyverse.com | sh -s list-installed-elf [<options>]
 
 Options:
 

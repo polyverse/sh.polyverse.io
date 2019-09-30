@@ -6,7 +6,7 @@ SHORT_DESCRIPTION="Install Polyverse polymorphic version of Linux®"
 export PV_GITSHA=GITSHA
 
 # set the environment variable PV_BASE_URL to test non-prod version
-if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.com"; fi
 
 #******************************************************************************#
 #                                 main                                         #
@@ -49,7 +49,7 @@ main() {
 	fi
 
 	_echo "Determining Linux distro info..."
-	# `curl https://sh.polyverse.io | sh -s info` to collect linux distro details; response looks like:
+	# `curl https://sh.polyverse.com | sh -s info` to collect linux distro details; response looks like:
 	#
 	# DISTRO=rhel
 	# RELEASE=6
@@ -64,7 +64,7 @@ main() {
 		_echo "Unable to determine Linux distro info: $PV_INFO. Please contact support@polyverse.io."
 		return 1
 	fi
-	# set variables based on sh.polyverse.io info result unless already set via command-line
+	# set variables based on sh.polyverse.com info result unless already set via command-line
 	if [ -z "$PV_NODEID" ]; then
 		PV_NODEID="$(parseInfo HOSTNAME "$PV_INFO")"
 		if [ $? -ne 0 ]; then _echo "$PV_NODEID"; return 1; fi
@@ -206,7 +206,7 @@ usage() {
 	cat >&2 <<-EOF
 	Usage:
 
-	   curl https://sh.polyverse.io | sh -s install <authkey> [<options>]
+	   curl https://sh.polyverse.com | sh -s install <authkey> [<options>]
 
 	Options:
 

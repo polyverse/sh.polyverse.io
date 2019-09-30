@@ -2,7 +2,7 @@
 
 SHORT_DESCRIPTION="List installed packages, version and source repo."
 
-if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.com"; fi
 
 #******************************************************************************#
 #                                 functions                                    #
@@ -16,7 +16,7 @@ installed package came from Polyverse.
 
 Usage:
 
-  curl https://sh.polyverse.io | sh -s list-installed [<options>]
+  curl https://sh.polyverse.com | sh -s list-installed [<options>]
 
 Options:
 

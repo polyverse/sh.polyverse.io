@@ -2,7 +2,7 @@
 
 SHORT_DESCRIPTION="Download/install Polymorphic tarball"
 
-if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.com"; fi
 
 #******************************************************************************#
 #                                 functions                                    #
@@ -12,7 +12,7 @@ usage() {
 cat >&2 <<-EOF
 Downloads and extracts a Polymorphic tarball.
 
-usage: curl https://sh.polyverse.io | sh -s install-tarball --authkey <authkey> --filename <filename> --destination </path/to/folder> [<options>]
+usage: curl https://sh.polyverse.com | sh -s install-tarball --authkey <authkey> --filename <filename> --destination </path/to/folder> [<options>]
 
 required:
 
@@ -74,7 +74,7 @@ function downloadScrambledTarball() {
 
 exitif "\"$1\" != \"install-tarball\"" "Error: unexpected argument \'$1\'\; expecting \'install-tarball\'."
 
-# due to the way sh.polyverse.io works, $1 is used to determine which script to run
+# due to the way sh.polyverse.com works, $1 is used to determine which script to run
 # but for the script itself, we want to get rid of the first argument
 shift
 

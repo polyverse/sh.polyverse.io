@@ -3,7 +3,7 @@
 ```
 Usage:
 
-   curl https://sh.polyverse.io | [sudo] bash -s replace-installed-elf [<options>]
+   curl https://sh.polyverse.com | [sudo] bash -s replace-installed-elf [<options>]
 
 Options:
 
@@ -14,7 +14,7 @@ Options:
 The default recommended Polymorphic Linux installation is to run the install script (which adds repo.polyverse.io to the repository list) and then replace all the installed packages with a polymorphic version. For example:
 ```
 $ apt-get update -y && apt-get upgrade -y
-$ curl https://sh.polyverse.io | sh -s install czcw7pjshny8lzzog8bgiizfr demo@polyverse.io
+$ curl https://sh.polyverse.com | sh -s install czcw7pjshny8lzzog8bgiizfr demo@polyverse.io
 $ apt-get -y update && apt-get -y install --reinstall $(dpkg --get-selections | awk '{print $1}')
 ```
 This has worked well for fresh systems, but can potentially cause issues for systems that have been carefully configured. Specifically, the `apt-get -y install --reinstall $(dpkg --get-selections | awk '{print $1}')` command reinstalls packages in alphabetical order and some packages (e.g., nvidia drivers) may need to be installed after other packages.
@@ -24,8 +24,8 @@ Since Polymorphic Linux® is about unique ELF files, the immediate goal after th
 The installation steps using this script is:
 ```
 $ apt-get update -y && apt-get upgrade -y
-$ curl https://sh.polyverse.io | sh -s install czcw7pjshny8lzzog8bgiizfr demo@polyverse.io
-$ curl https://sh.polyverse.io | bash -s replace-installed-elf
+$ curl https://sh.polyverse.com | sh -s install czcw7pjshny8lzzog8bgiizfr demo@polyverse.io
+$ curl https://sh.polyverse.com | bash -s replace-installed-elf
 ```
 
 ## How it works
@@ -40,7 +40,7 @@ A few important details:
   * The md5sum of the installed ELF files are updated in the corresponding `.md5sums` file that exists in `/var/lib/dpkg/info`.
   * Since triggers are scripts, it's possible that a package can take an installed binary and then move it, or include the binary in a secondary build (e.g., `initramfs`), or anything else. Since we skip triggers, this can be addressed by running this script first, then subsequently performing `apt-get -y install --reinstall <package>`.
   
-The source code can be reviewed here: https://github.com/polyverse/sh.polyverse.io/blob/master/scripts/replace-installed-elf
+The source code can be reviewed here: https://github.com/polyverse/sh.polyverse.com/blob/master/scripts/replace-installed-elf
 
 ## Validation
 Here are a few key expected outcomes after running this script:

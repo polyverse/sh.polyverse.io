@@ -12,7 +12,7 @@ cat >&2 <<-EOF
 
 	Usage:
 
-	  curl https://sh.polyverse.io | sh -s instance-id [<options>]
+	  curl https://sh.polyverse.com | sh -s instance-id [<options>]
 
 	Options:
 
@@ -105,7 +105,7 @@ getAptUrls() {
 #                                    main                                      #
 #******************************************************************************#
 
-# due to the way sh.polyverse.io works, $1 is used to determine which script to run
+# due to the way sh.polyverse.com works, $1 is used to determine which script to run
 # but for the script itself, we want to get rid of the first argument
 if [ "$1" = "instance-id" ]; then
         shift

@@ -26,7 +26,7 @@ jre/ folder and the corresponding tarball is determined and downloaded.
 
 Usage:
 
-   curl https://sh.polyverse.io | sh -s polyjdk_install <options>
+   curl https://sh.polyverse.com | sh -s polyjdk_install <options>
 
 Options:
 
@@ -40,18 +40,18 @@ Options:
 Examples:
 
    - Default installation process
-       $ curl https://sh.polyverse.io | sh -s polyjdk_install --authkey <authkey>
+       $ curl https://sh.polyverse.com | sh -s polyjdk_install --authkey <authkey>
 
    - Just download the tarball, but don't install. This is useful if you the
      installation will be on a separate host that doesn't have internet access.
-       $ curl https://sh.polyverse.io | sh -s polyjdk_install --authkey <authkey> --download-only
+       $ curl https://sh.polyverse.com | sh -s polyjdk_install --authkey <authkey> --download-only
 
    - Install a pre-downloaded tarball. The tarball must be placed in the 
      --install-root folder.
-       $ curl https://sh.polyverse.io | sh -s polyjdk_install --install-root /opt/arcsight
+       $ curl https://sh.polyverse.com | sh -s polyjdk_install --install-root /opt/arcsight
 
    - Uninstall
-       $ curl https://sh.polyverse.io | sh -s polyjdk_install --uninstall
+       $ curl https://sh.polyverse.com | sh -s polyjdk_install --uninstall
 
 EOF
 }
@@ -296,7 +296,7 @@ function scanProcess() {
 #                                    main                                      #
 #******************************************************************************#
 
-# due to the way sh.polyverse.io works, $1 is used to determine which script to run
+# due to the way sh.polyverse.com works, $1 is used to determine which script to run
 # but for the script itself, we want to get rid of the first argument
 if [ "$1" = "polyjdk_install" ]; then
         shift

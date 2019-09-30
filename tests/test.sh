@@ -10,7 +10,7 @@ PV_TESTS_SH_FILENAME="${BASH_SOURCE[0]}"
 export PV_SH_ROOT="$( cd "$( dirname "$PV_TESTS_SH_FILENAME" )" && cd .. && pwd )"
 
 if [ -z "$PV_BASE_URL" ]; then
-	export PV_BASE_URL="https://sh.polyverse.io"
+	export PV_BASE_URL="https://sh.polyverse.com"
 fi
 
 PV_FMT_BOLD=$(tput bold)

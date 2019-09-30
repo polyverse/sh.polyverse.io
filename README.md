@@ -1,8 +1,8 @@
-# sh.polyverse.io
+# sh.polyverse.com
 
 These are a set of scripts designed to provide a suite of "no install" utilities for customers of Polymorphic Linux.
 
-Usage: `curl https://sh.polyverse.io | sh -s <subcommand> [<options>]`
+Usage: `curl https://sh.polyverse.com | sh -s <subcommand> [<options>]`
 
 ## Development
 
@@ -24,18 +24,18 @@ cat main.sh | PV_BASE_URL="file:///$PWD" sh -s <subcommand> [<options>]
 
 To test on the beta site, run the command as follows:
 ```
-curl https://sh-beta.polyverse.io | PV_BASE_URL="https://sh-beta.polyverse.io" sh -s <subcommand> [<options>]
+curl https://sh-beta.polyverse.com | PV_BASE_URL="https://sh-beta.polyverse.com" sh -s <subcommand> [<options>]
 ```
 
 ## Deployment
 
-Deployments are done automatically using AWS CloudPipeline; they're triggered when commits are pushed to https://github.com/polyverse/sh.polyverse.io.
+Deployments are done automatically using AWS CloudPipeline; they're triggered when commits are pushed to https://github.com/polyverse/sh.polyverse.com.
 
 Before committing/pushing, run `./build.sh`. This re-generates the `./usage.txt` file.
 
 There are 2 pipelines:
 
-1. https://sh-beta.polyverse.io - Developers should use the `beta` branch and push early and often without worrying about breaking production.
-2. https://sh.polyverse.io - Developers should never publish directly to the `master` branch; all production deployments must be the result of a PR request.
+1. https://sh-beta.polyverse.com - Developers should use the `beta` branch and push early and often without worrying about breaking production.
+2. https://sh.polyverse.com - Developers should never publish directly to the `master` branch; all production deployments must be the result of a PR request.
 
 AWS CloudPipeline pulls the commit and places them in an AWS S3 bucket which is then served directly via AWS CloudFront.
