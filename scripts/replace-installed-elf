@@ -224,7 +224,7 @@ deb_installElfsOnly() {
 				continue
 			fi
 
-			if [ "$_FILE" = "$_DEB_FILENAME~/DEBIAN/control" ] || [ "$_FILE" = "$_DEB_FILENAME~/DEBIAN/md5sums" ]; then
+			if [ "$_FILE" = "$_DEB_FILENAME~/DEBIAN/control" ] || [ "$_FILE" = "$_DEB_FILENAME~/DEBIAN/md5sums" ] || [ "$_FILE" = "$_DEB_FILENAME~/DEBIAN/conffiles" ]; then
 				_log "Leaving '$_FILE'."
 				continue
 			fi
@@ -232,6 +232,13 @@ deb_installElfsOnly() {
 			_log "Removing '$_FILE'."
 			_eval "rm -f \"$_FILE\""
 		done <<< "$(find $_DEB_FILENAME~ -not -type d)"
+
+		# if the package has conffiles, copy the ones that are already installed on the system
+		if [ -f "$_DEB_FILENAME~/DEBIAN/conffiles" ]; then
+			while read CONFFILE; do
+				_eval "cp $CONFFILE $_DEB_FILENAME~/$CONFFILE"
+			done <<< $(cat $_DEB_FILENAME~/DEBIAN/conffiles)
+		fi
 
 		# since we remove a bunch of files, there are probably empty folders that we should remove before packaging
 		_DIRECTORIES="$(find $_DEB_FILENAME~ -type d)"
