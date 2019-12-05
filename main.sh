@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://repo-staging.polyverse.io/cli"; fi
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
 
 PV_SHELL="sh"
 if [ ! -z "$(echo $SHELL | grep bash)" ]; then
