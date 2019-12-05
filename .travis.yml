@@ -11,8 +11,8 @@ install:
   - ln -s ~/.local/lib/pv/pv ~/.local/bin/pv
 script:
   - ./build.sh || travis_terminate 1;
-  - ./tests/test.sh --json tests/post-build.json || travis_terminate 1;
-  - ./test.sh || travis_terminate 1;
+  #- ./tests/test.sh --json tests/post-build.json || travis_terminate 1;
+  #- ./test.sh || travis_terminate 1;
   - ./deploy.sh || travis_terminate 1;
 env:
   global:
