@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://sh.polyverse.io"; fi
+if [ -z "$PV_BASE_URL" ]; then PV_BASE_URL="https://repo-staging.polyverse.io"; fi
 
 PV_SHELL="sh"
 if [ ! -z "$(echo $SHELL | grep bash)" ]; then
@@ -71,5 +71,5 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-eval "curl -sS $PV_BASE_URL/scripts/$SUBCMD | $PV_SHELL -s $ARGS"
+eval "curl -sS $PV_BASE_URL/cli/$SUBCMD | $PV_SHELL -s $ARGS"
 exit $?
