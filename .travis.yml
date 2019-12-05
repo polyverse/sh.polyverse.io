@@ -14,7 +14,6 @@ script:
   - ./tests/test.sh --json tests/post-build.json || travis_terminate 1;
   - ./test.sh || travis_terminate 1;
   - ./deploy.sh || travis_terminate 1;
-  - ./tests/test.sh --json tests/post-deploy.json || travis_terminate 1;
 env:
   global:
     - AWS_DEFAULT_REGION=us-west-2
